@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: 'var(--font-amiri)';
+  --font-body: 'var(--font-inter)';
+
+  /* NOVO PALETA: VICTORIAN GREEN & BLACK (REFINED) */
+  --color-mythos-black: #050a05;
+  /* Black with slight green tint */
+  --color-mythos-dark-green: #0d1a0d;
+  /* Slightly lighter forest green base */
+  --color-mythos-green: #1f3a1f;
+  /* Lighter moss green for cards */
+  --color-mythos-accent: #3d6e3d;
+  /* Brighter accent */
+
+  --color-mythos-gold: #e6b86a;
+  /* Brighter, more metallic gold */
+  --color-mythos-gold-dim: #9c824f;
+  /* Middle gold */
+  --color-mythos-parchment: #f0e6d2;
+  /* Very light parchment for readability */
+
+  --color-mythos-blood: #8a1c1c;
+  /* Brighter blood red */
+  --color-mythos-sanity: #4a7a9c;
+  /* Brighter sanity blue */
+}
+
+:root {
+  --background: var(--color-mythos-dark-green);
+  --foreground: var(--color-mythos-parchment);
+}
+
+body {
+  background-color: var(--color-mythos-dark-green);
+  /* Textura de ruído ou vinheta sutil seria ideal aqui, vamos tentar um gradiente radial para foco */
+  background-image: radial-gradient(circle at center, #0f1f0f 0%, #050a05 100%);
+  color: var(--color-mythos-parchment);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  color: var(--color-mythos-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Utilitários para estilo vintage dark */
+.vintage-border {
+  border: 1px solid var(--color-mythos-gold-dim);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--color-mythos-accet);
+  /* Moldura dupla */
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.vintage-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-bottom: 1px solid var(--color-mythos-gold-dim);
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--color-mythos-parchment);
+  padding: 0.2rem;
+  transition: all 0.3s ease;
+}
+
+.vintage-input:focus {
+  outline: none;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid var(--color-mythos-gold);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* Scrollbar Customizada */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-mythos-black);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-mythos-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mythos-gold-dim);
+}
