@@ -9,9 +9,10 @@ import { Upload, Camera } from "lucide-react";
 interface Props {
     investigator: Investigator;
     onChange: (field: keyof Investigator, value: string | number) => void;
+    isReadOnly?: boolean;
 }
 
-export default function CharacterSheetHeader({ investigator, onChange }: Props) {
+export default function CharacterSheetHeader({ investigator, onChange, isReadOnly }: Props) {
     // Find current occupation description
     const currentOccupation = OCCUPATIONS_PTBR.find(o => o.name === investigator.occupation);
 
@@ -40,6 +41,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (isReadOnly) return;
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
@@ -65,6 +67,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                         <Input
                             value={investigator.name}
                             onChange={(e) => onChange("name", e.target.value)}
+                            readOnly={isReadOnly}
                             className="vintage-input w-full text-lg font-bold text-[var(--color-mythos-parchment)]"
                         />
                     </div>
@@ -84,9 +87,10 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                             {occupationDescriptionNode && <InfoPopover title={investigator.occupation} description={occupationDescriptionNode} />}
                         </div>
                         <select
-                            className="vintage-input w-full bg-[var(--color-mythos-black)]/50 text-[var(--color-mythos-parchment)] border-b border-[var(--color-mythos-gold-dim)] focus:outline-none focus:border-[var(--color-mythos-gold)]"
+                            className="vintage-input w-full bg-[var(--color-mythos-black)]/50 text-[var(--color-mythos-parchment)] border-b border-[var(--color-mythos-gold-dim)] focus:outline-none focus:border-[var(--color-mythos-gold)] disabled:opacity-70"
                             value={investigator.occupation}
                             onChange={(e) => onChange("occupation", e.target.value)}
+                            disabled={isReadOnly}
                         >
                             <option value="" className="bg-[var(--color-mythos-black)]">Selecione...</option>
                             {OCCUPATIONS_PTBR.map(occ => (
@@ -102,6 +106,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                                 type="number"
                                 value={investigator.age}
                                 onChange={(e) => onChange("age", parseInt(e.target.value))}
+                                readOnly={isReadOnly}
                                 className="vintage-input w-full text-center text-[var(--color-mythos-parchment)]"
                             />
                         </div>
@@ -110,6 +115,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                             <Input
                                 value={investigator.sex}
                                 onChange={(e) => onChange("sex", e.target.value)}
+                                readOnly={isReadOnly}
                                 className="vintage-input w-full text-center text-[var(--color-mythos-parchment)]"
                             />
                         </div>
@@ -120,6 +126,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                         <Input
                             value={investigator.residence}
                             onChange={(e) => onChange("residence", e.target.value)}
+                            readOnly={isReadOnly}
                             className="vintage-input w-full text-[var(--color-mythos-parchment)]"
                         />
                     </div>
@@ -129,6 +136,7 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                         <Input
                             value={investigator.birthplace}
                             onChange={(e) => onChange("birthplace", e.target.value)}
+                            readOnly={isReadOnly}
                             className="vintage-input w-full text-[var(--color-mythos-parchment)]"
                         />
                     </div>
@@ -136,9 +144,9 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
 
                 {/* Portrait / Logo Area */}
                 <div
-                    className="md:col-span-3 flex flex-col items-center justify-center border-2 border-[var(--color-mythos-gold)] p-2 bg-[var(--color-mythos-black)]/30 relative group cursor-pointer overflow-hidden aspect-[3/4] shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Clique para adicionar uma foto"
+                    className={`md:col-span-3 flex flex-col items-center justify-center border-2 border-[var(--color-mythos-gold)] p-2 bg-[var(--color-mythos-black)]/30 relative group overflow-hidden aspect-[3/4] shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] ${!isReadOnly ? 'cursor-pointer' : ''}`}
+                    onClick={() => !isReadOnly && fileInputRef.current?.click()}
+                    title={!isReadOnly ? "Clique para adicionar uma foto" : "Retrato do Investigador"}
                 >
                     <input
                         type="file"
@@ -155,11 +163,13 @@ export default function CharacterSheetHeader({ investigator, onChange }: Props) 
                                 alt="Retrato do Investigador"
                                 className="w-full h-full object-cover grayscale sepia-[.3] contrast-125 hover:grayscale-0 hover:sepia-0 transition-all duration-500"
                             />
-                            <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-[var(--color-mythos-gold)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                                    <Camera className="w-4 h-4" /> Alterar
-                                </span>
-                            </div>
+                            {!isReadOnly && (
+                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-[var(--color-mythos-gold)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                        <Camera className="w-4 h-4" /> Alterar
+                                    </span>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="w-full h-full border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center justify-center text-center text-[var(--color-mythos-gold-dim)] italic p-4 hover:bg-[var(--color-mythos-green)]/10 transition-colors">

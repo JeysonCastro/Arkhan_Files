@@ -6,6 +6,7 @@ interface Props {
     attributes: Investigator['attributes'];
     derived: Investigator['derivedStats'];
     onChange: (attr: AttributeName, value: number) => void;
+    isReadOnly?: boolean;
 }
 
 const ATTRIBUTE_LIST: AttributeName[] = ['STR', 'CON', 'SIZ', 'DEX', 'APP', 'INT', 'POW', 'EDU'];
@@ -15,7 +16,7 @@ const ATTRIBUTE_LABELS: Record<string, string> = {
     APP: 'APA', INT: 'INT', POW: 'POD', EDU: 'EDU'
 };
 
-export default function CharacterSheetAttributes({ attributes, derived, onChange }: Props) {
+export default function CharacterSheetAttributes({ attributes, derived, onChange, isReadOnly }: Props) {
     // Helper to render the small 1/2 and 1/5 boxes
     const renderFractions = (val: number) => (
         <div className="flex flex-col text-[0.6rem] leading-none absolute -right-4 top-1 gap-1">
@@ -49,7 +50,8 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                                             type="number"
                                             value={val}
                                             onChange={(e) => onChange(attr, parseInt(e.target.value) || 0)}
-                                            className="w-16 h-12 text-2xl text-center font-bold border-2 border-[var(--color-mythos-gold-dim)] rounded-sm bg-[var(--color-mythos-black)]/40 text-[var(--color-mythos-parchment)] p-0 focus:border-[var(--color-mythos-gold)]"
+                                            readOnly={isReadOnly}
+                                            className="w-16 h-12 text-2xl text-center font-bold border-2 border-[var(--color-mythos-gold-dim)] rounded-sm bg-[var(--color-mythos-black)]/40 text-[var(--color-mythos-parchment)] p-0 focus:border-[var(--color-mythos-gold)] disabled:opacity-70"
                                         />
                                         {renderFractions(val)}
                                     </div>

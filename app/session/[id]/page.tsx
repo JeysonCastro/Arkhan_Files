@@ -9,6 +9,7 @@ import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { DiceRoller } from "@/components/features/dice/dice-roller";
 import { PlayerRollListener } from "@/components/features/dice/player-roll-listener";
+import { CompanionCard } from "@/components/features/session/companion-card";
 
 export default function PlayerSessionView() {
     const params = useParams();
@@ -97,6 +98,44 @@ export default function PlayerSessionView() {
         }
     };
 
+    // Realtime Listener for Investigator updates (HP, MP, Sanity, etc.)
+    useEffect(() => {
+        if (!params.id || isLoadingData) return;
+
+        const subscription = supabase
+            .channel(`session_updates_${params.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'investigators'
+            }, (payload) => {
+                setCompanions(prev => {
+                    const idx = prev.findIndex(c => c.id === payload.new.id);
+                    if (idx !== -1) {
+                        const newCompanions = [...prev];
+                        const invData = payload.new.data;
+
+                        newCompanions[idx] = {
+                            ...newCompanions[idx],
+                            hp: invData?.derivedStats?.hp || { current: 0, max: 0 },
+                            sanity: invData?.derivedStats?.sanity || { current: 0, max: 0 },
+                            mp: invData?.derivedStats?.magicPoints || { current: 0, max: 0 },
+                            portrait: invData?.personalData?.portrait || newCompanions[idx].portrait
+                        };
+                        return newCompanions;
+                    }
+                    return prev;
+                });
+            })
+            .subscribe((status) => {
+                console.log("Supabase Player Realtime Status:", status);
+            });
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
+    }, [params.id, isLoadingData]);
+
     if (isLoading || isLoadingData) return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Estabelecendo conexão mística...</div>;
 
     const currentUserInvestigator = companions.find(c => c.isCurrentUser);
@@ -141,75 +180,7 @@ export default function PlayerSessionView() {
                 {/* Companions Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {companions.map(companion => (
-                        <div
-                            key={companion.id}
-                            className={`relative border rounded-lg overflow-hidden flex flex-col transition-all duration-300 ${companion.isCurrentUser
-                                ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-green)]/10 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
-                                : 'border-[var(--color-mythos-gold-dim)]/40 bg-[#120a0a]'
-                                }`}
-                        >
-                            {/* Portrait / Header */}
-                            <div className="h-40 bg-black/60 relative border-b border-[var(--color-mythos-gold-dim)]/30 flex items-center justify-center overflow-hidden">
-                                {companion.portrait ? (
-                                    <img
-                                        src={companion.portrait}
-                                        alt={companion.characterName}
-                                        className="object-cover w-full h-full opacity-80"
-                                        onError={(e) => {
-                                            // Fallback to the icon if the image fails to load
-                                            e.currentTarget.style.display = 'none';
-                                            e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                                        }}
-                                    />
-                                ) : null}
-
-                                <User className={`w-16 h-16 text-[var(--color-mythos-gold-dim)]/20 fallback-icon ${companion.portrait ? 'hidden absolute' : ''}`} />
-
-                                {/* Overlay Gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
-
-                                {/* Names */}
-                                <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/60 backdrop-blur-sm border-t border-[var(--color-mythos-gold-dim)]/20">
-                                    <h2 className="text-lg font-bold text-[var(--color-mythos-parchment)] font-heading truncate">
-                                        {companion.characterName}
-                                    </h2>
-                                    <p className="text-xs text-[var(--color-mythos-gold-dim)] truncate uppercase tracking-widest flex items-center gap-1">
-                                        <User className="w-3 h-3" />
-                                        Jogado por: {companion.playerName} {companion.isCurrentUser && '(Você)'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Vitals Body */}
-                            <div className="p-4 grid grid-cols-3 gap-2 flex-grow">
-                                {/* HP */}
-                                <div className="bg-black/40 rounded border border-[var(--color-mythos-blood)]/20 p-2 flex flex-col items-center justify-center relative overflow-hidden group">
-                                    <div className={`absolute bottom-0 left-0 right-0 bg-[var(--color-mythos-blood)]/10 z-0 transition-all ${companion.hp.current < 5 ? 'h-full animate-pulse bg-[var(--color-mythos-blood)]/30' : 'h-1/3'}`} />
-                                    <Heart className="w-4 h-4 text-[var(--color-mythos-blood)] mb-1 z-10" />
-                                    <span className="text-sm font-bold text-[var(--color-mythos-parchment)] z-10">
-                                        {companion.hp.current} <span className="text-[10px] text-[var(--color-mythos-gold-dim)]">/ {companion.hp.max}</span>
-                                    </span>
-                                </div>
-
-                                {/* Sanity */}
-                                <div className="bg-black/40 rounded border border-blue-900/30 p-2 flex flex-col items-center justify-center relative overflow-hidden">
-                                    <div className={`absolute bottom-0 left-0 right-0 bg-blue-900/10 z-0 transition-all ${companion.sanity.current < 30 ? 'h-full animate-pulse bg-orange-900/40 border-orange-500' : 'h-1/3'}`} />
-                                    <Brain className={`w-4 h-4 mb-1 z-10 ${companion.sanity.current < 30 ? 'text-orange-500' : 'text-blue-400'}`} />
-                                    <span className={`text-sm font-bold z-10 ${companion.sanity.current < 30 ? 'text-orange-400' : 'text-[var(--color-mythos-parchment)]'}`}>
-                                        {companion.sanity.current}
-                                    </span>
-                                </div>
-
-                                {/* MP */}
-                                <div className="bg-black/40 rounded border border-purple-900/30 p-2 flex flex-col items-center justify-center relative overflow-hidden">
-                                    <div className="absolute bottom-0 left-0 right-0 bg-purple-900/10 h-1/3 z-0" />
-                                    <Zap className="w-4 h-4 text-purple-400 mb-1 z-10" />
-                                    <span className="text-sm font-bold text-[var(--color-mythos-parchment)] z-10">
-                                        {companion.mp.current}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        <CompanionCard key={companion.id} companion={companion} />
                     ))}
 
                     {companions.length === 0 && (

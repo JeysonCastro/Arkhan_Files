@@ -9,9 +9,10 @@ import { WeaponData } from "@/lib/data-ptbr";
 interface Props {
     investigator: Investigator;
     onChange: (field: keyof Investigator, value: any) => void;
+    isReadOnly?: boolean;
 }
 
-export default function CharacterSheetCombat({ investigator, onChange }: Props) {
+export default function CharacterSheetCombat({ investigator, onChange, isReadOnly }: Props) {
 
     const handleAddWeapon = (weaponData: WeaponData) => {
         const newWeapon: Weapon = {
@@ -57,7 +58,7 @@ export default function CharacterSheetCombat({ investigator, onChange }: Props) 
             {/* Armas Header */}
             <div className="flex items-center gap-2 mb-2 bg-[var(--color-mythos-green)] p-1 border-t border-b border-[var(--color-mythos-gold-dim)]">
                 <h3 className="text-xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest flex-1 text-center">Armas</h3>
-                <WeaponSelector onSelect={handleAddWeapon} />
+                {!isReadOnly && <WeaponSelector onSelect={handleAddWeapon} />}
             </div>
 
             {/* Tabela de Armas */}
@@ -97,9 +98,11 @@ export default function CharacterSheetCombat({ investigator, onChange }: Props) 
                                     <td className="border border-[var(--color-mythos-gold-dim)] p-0 text-center align-middle text-[var(--color-mythos-parchment)]">{w.ammo}</td>
                                     <td className="border border-[var(--color-mythos-gold-dim)] p-0 text-center align-middle text-[var(--color-mythos-parchment)]">{w.malfunction}</td>
                                     <td className="border border-[var(--color-mythos-gold-dim)] p-0 text-center align-middle">
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-[var(--color-mythos-blood)] hover:text-red-400 hover:bg-[var(--color-mythos-blood)]/20" onClick={() => handleRemoveWeapon(w.id)}>
-                                            <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                        {!isReadOnly && (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-[var(--color-mythos-blood)] hover:text-red-400 hover:bg-[var(--color-mythos-blood)]/20" onClick={() => handleRemoveWeapon(w.id)}>
+                                                <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                        )}
                                     </td>
                                 </tr>
                             );
@@ -134,9 +137,9 @@ export default function CharacterSheetCombat({ investigator, onChange }: Props) 
                 <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/20">
                     <Label className="font-bold uppercase text-[var(--color-mythos-gold)] text-xs block mb-2 border-b border-[var(--color-mythos-gold-dim)]">Ferimentos</Label>
                     <div className="flex gap-4 text-xs font-bold text-[var(--color-mythos-parchment)]">
-                        <label className="flex items-center gap-1"><input type="checkbox" className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Lesão Grave</label>
-                        <label className="flex items-center gap-1"><input type="checkbox" className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Inconsciente</label>
-                        <label className="flex items-center gap-1"><input type="checkbox" className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Morrendo</label>
+                        <label className="flex items-center gap-1"><input type="checkbox" disabled={isReadOnly} className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Lesão Grave</label>
+                        <label className="flex items-center gap-1"><input type="checkbox" disabled={isReadOnly} className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Inconsciente</label>
+                        <label className="flex items-center gap-1"><input type="checkbox" disabled={isReadOnly} className="border-[var(--color-mythos-gold-dim)] rounded-none bg-transparent" /> Morrendo</label>
                     </div>
                 </div>
             </div>

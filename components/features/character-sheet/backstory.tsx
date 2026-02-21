@@ -4,9 +4,10 @@ import { Label } from "@/components/ui/label";
 interface Props {
     investigator: Investigator;
     onChange: (field: keyof Investigator, value: string) => void;
+    isReadOnly?: boolean;
 }
 
-export default function CharacterSheetBackstory({ investigator, onChange }: Props) {
+export default function CharacterSheetBackstory({ investigator, onChange, isReadOnly }: Props) {
     const renderTextArea = (label: string, field: keyof Investigator, rows: number = 3) => (
         <div className="mb-4">
             <Label className="font-heading text-lg text-[var(--color-mythos-gold)] border-b border-[var(--color-mythos-gold-dim)] mb-1 w-full block">{label}</Label>
@@ -20,7 +21,8 @@ export default function CharacterSheetBackstory({ investigator, onChange }: Prop
                 <textarea
                     value={String(investigator[field] || "")}
                     onChange={(e) => onChange(field, e.target.value)}
-                    className="w-full bg-transparent border-none resize-none font-handwriting text-lg leading-loose pl-1 relative z-10 focus:outline-none text-[var(--color-mythos-parchment)]"
+                    readOnly={isReadOnly}
+                    className="w-full bg-transparent border-none resize-none font-handwriting text-lg leading-loose pl-1 relative z-10 focus:outline-none text-[var(--color-mythos-parchment)] disabled:opacity-70"
                     rows={rows}
                     style={{ lineHeight: '2.35rem' }} // Ajuste fino para alinhar com as linhas
                 />
@@ -55,7 +57,8 @@ export default function CharacterSheetBackstory({ investigator, onChange }: Prop
                                 // Simple multiline to array conversion
                                 onChange("gear" as any, e.target.value.split('\n') as any)
                             }}
-                            className="w-full h-40 bg-transparent resize-none border-none focus:outline-none font-serif text-[var(--color-mythos-parchment)]"
+                            readOnly={isReadOnly}
+                            className="w-full h-40 bg-transparent resize-none border-none focus:outline-none font-serif text-[var(--color-mythos-parchment)] disabled:opacity-70"
                             placeholder="- Item 1&#10;- Item 2"
                         />
                     </div>
@@ -69,6 +72,7 @@ export default function CharacterSheetBackstory({ investigator, onChange }: Prop
                                     type="number"
                                     value={investigator.spendingLevel}
                                     onChange={(e) => onChange("spendingLevel" as any, e.target.value)}
+                                    readOnly={isReadOnly}
                                     className="vintage-input w-full"
                                 />
                             </div>
@@ -78,6 +82,7 @@ export default function CharacterSheetBackstory({ investigator, onChange }: Prop
                                     type="number"
                                     value={investigator.cash}
                                     onChange={(e) => onChange("cash" as any, e.target.value)}
+                                    readOnly={isReadOnly}
                                     className="vintage-input w-full"
                                 />
                             </div>
@@ -86,6 +91,7 @@ export default function CharacterSheetBackstory({ investigator, onChange }: Prop
                                 <input
                                     value={investigator.assets}
                                     onChange={(e) => onChange("assets" as any, e.target.value)}
+                                    readOnly={isReadOnly}
                                     className="vintage-input w-full"
                                 />
                             </div>

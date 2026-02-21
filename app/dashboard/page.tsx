@@ -76,55 +76,92 @@ export default function DashboardPage() {
         setJoinMessage({ text: "Iniciando conexão...", type: "info" });
 
         try {
-            // Helper to timeout fetch requests just in case of deadlocks
-            const withTimeout = (promise: Promise<any>, ms = 8000) => {
-                return Promise.race([
-                    promise,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase call timed out")), ms))
-                ]);
-            };
-
+            console.log("[JOIN_SESSION] Iniciando...", { inviteCode, selectedInvestigatorId });
             setJoinMessage({ text: "Consultando código da sessão...", type: "info" });
 
-            // 1. Find the session by invite code
-            const { data: sessionData, error: sessionError } = await withTimeout((async () => await supabase
-                .from('sessions')
-                .select('id, name')
-                .eq('invite_code', inviteCode.toUpperCase())
-                .eq('is_active', true)
-                .single()
-            )());
+            // Helper for forced timeout just to guarantee UI feedback if it hangs
+            const executeWithTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => {
+                let timeoutId: NodeJS.Timeout;
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                    timeoutId = setTimeout(() => {
+                        console.error(`[JOIN_SESSION] Timeout após ${ms}ms`);
+                        reject(new Error("A requisição demorou demais para responder. Tente novamente."));
+                    }, ms);
+                });
+                return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+            };
 
-            if (sessionError) {
-                if (sessionError.code === 'PGRST116') throw new Error("Código inválido ou sessão inativa.");
-                throw sessionError;
+            console.log("[JOIN_SESSION] Disparando REST Fetch Vanilla...");
+
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+            // Extract the active user token to bypass RLS restrictions on raw fetches
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token || anonKey;
+
+            // 1. Find the session via raw fetch to avoid SDK hanging
+            const sessionRes = await executeWithTimeout(
+                fetch(`${supabaseUrl}/rest/v1/sessions?invite_code=eq.${inviteCode.toUpperCase()}&is_active=eq.true&select=id,name`, {
+                    headers: {
+                        'apikey': anonKey!,
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+            );
+
+            if (!sessionRes.ok) {
+                console.error("[JOIN_SESSION] Sessão Fetch Error HTTP", sessionRes.status);
+                throw new Error("Erro de comunicação com o servidor de dados.");
             }
-            if (!sessionData) {
-                throw new Error("Sessão não encontrada ou vazia.");
+
+            const sessionsData = await sessionRes.json();
+            console.log("[JOIN_SESSION] Query sessions recebida", sessionsData);
+
+            if (!sessionsData || sessionsData.length === 0) {
+                throw new Error("Sessão não encontrada, inativa ou código inválido.");
             }
+
+            const sessionData = sessionsData[0]; // .single() equivalent
 
             setJoinMessage({ text: "Sessão encontrada. Vinculando personagem...", type: "info" });
+            console.log("[JOIN_SESSION] Disparando query no banco (session_characters) por POST (REST)...");
 
-            // 2. Link investigator to session
-            const { error: linkError } = await withTimeout((async () => await supabase
-                .from('session_characters')
-                .insert([{
-                    session_id: sessionData.id,
-                    investigator_id: selectedInvestigatorId
-                }])
-            )());
+            // 2. Link investigator to session via raw fetch
+            const linkRes = await executeWithTimeout(
+                fetch(`${supabaseUrl}/rest/v1/session_characters`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': anonKey!,
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionData.id,
+                        investigator_id: selectedInvestigatorId
+                    })
+                })
+            );
 
-            // Specifically handle unique constraint violation (already joined)
-            if (linkError) {
-                if (linkError.code === '23505') {
-                    // It's technically a success if they are already in
+            console.log("[JOIN_SESSION] Query session_characters recebida. Status:", linkRes.status);
+
+            if (!linkRes.ok) {
+                const linkErrorData = await linkRes.json().catch(() => ({}));
+                console.log("[JOIN_SESSION] RAW Link Error Data", linkErrorData);
+
+                // 409 Conflict = Unique violation in PostgREST
+                if (linkRes.status === 409 || linkErrorData.code === '23505') {
+                    console.log("[JOIN_SESSION] Personagem já vinculado, redirecionando.");
                     setJoinMessage({ text: "Personagem já vinculado. Redirecionando...", type: "success" });
                     setTimeout(() => router.push(`/session/${sessionData.id}`), 500);
                     return;
                 }
-                throw new Error(linkError.message || JSON.stringify(linkError));
+                throw new Error(linkErrorData.message || "Não foi possível vincular o personagem à mesa.");
             }
 
+            console.log("[JOIN_SESSION] Sucesso. Redirecionando.");
             setJoinMessage({ text: `Entrando na sessão: ${sessionData.name}...`, type: "success" });
             setInviteCode(""); // Clear code
 
@@ -134,10 +171,11 @@ export default function DashboardPage() {
             }, 1000);
 
         } catch (err: any) {
-            console.error("Join session error:", err);
+            console.error("[JOIN_SESSION] Catch Block:", err);
             setJoinMessage({ text: err.message || "Erro ao entrar na sessão.", type: "error" });
         } finally {
             setIsJoining(false);
+            console.log("[JOIN_SESSION] Fim.");
         }
     };
 

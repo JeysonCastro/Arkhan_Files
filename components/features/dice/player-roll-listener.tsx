@@ -78,15 +78,33 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
 
             setRollResult({ number: result, type: successType });
 
-            // Update database
-            await supabase
-                .from('roll_requests')
-                .update({
-                    status: 'ROLLED',
-                    result_roll: result,
-                    result_type: successType
+            // Extrair o token atual para enviar no POST puro contornando falhas no Supabase Client
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+                const accessToken = session?.access_token || anonKey;
+
+                // Fire-and-forget RAW PATCH request
+                fetch(`${supabaseUrl}/rest/v1/roll_requests?id=eq.${activeRequest.id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': anonKey!,
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        status: 'ROLLED',
+                        result_roll: result,
+                        result_type: successType
+                    })
                 })
-                .eq('id', activeRequest.id);
+                    .then(res => {
+                        if (!res.ok) console.error("Falha ao registrar rolagem. Status HTTP:", res.status);
+                        else console.log("Rolagem atualizada com sucesso no banco de dados.");
+                    })
+                    .catch(err => console.error("Erro na comunicação fetch:", err));
+            });
 
             setIsRolling(false);
 

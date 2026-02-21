@@ -23,6 +23,7 @@ export default function GMPage() {
     const [sessions, setSessions] = useState<any[]>([]);
     const [selectedSessionId, setSelectedSessionId] = useState<string>('ALL');
     const [isCreatingSession, setIsCreatingSession] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     // Roll Requests
     const [activeRolls, setActiveRolls] = useState<any[]>([]);
@@ -62,7 +63,9 @@ export default function GMPage() {
 
     // Subscribe to Roll Requests
     useEffect(() => {
-        if (!user || user.role !== 'KEEPER' || selectedSessionId === 'ALL') return;
+        if (!user || user.role !== 'KEEPER' || !selectedSessionId || selectedSessionId === 'ALL') return;
+
+        console.log("Setting up REALTIME listener for session:", selectedSessionId);
 
         const fetchActiveRolls = async () => {
             const { data } = await supabase
@@ -77,28 +80,85 @@ export default function GMPage() {
         fetchActiveRolls();
 
         const subscription = supabase
-            .channel('gm_roles_channel')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'roll_requests',
-                filter: `session_id=eq.${selectedSessionId}`
-            }, (payload) => {
-                // Refresh the active rolls on any change
-                fetchActiveRolls();
+            .channel(`gm_roles_channel_${selectedSessionId}`) // Unique channel per session
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'roll_requests',
+                    filter: `session_id=eq.${selectedSessionId}`
+                },
+                (payload) => {
+                    console.log("Realtime GM Payload Received:", payload);
+                    // Refresh the active rolls on any change
+                    fetchActiveRolls();
 
-                // If it's an update to ROLLED, maybe show a toast/alert
-                if (payload.eventType === 'UPDATE' && payload.new.status === 'ROLLED') {
-                    // Optional: could play a sound or use a toast library here
-                    console.log("Player Rolled:", payload.new);
+                    // If it's an update to ROLLED, maybe show a toast/alert
+                    if (payload.eventType === 'UPDATE' && payload.new.status === 'ROLLED') {
+                        // Optional: could play a sound or use a toast library here
+                        console.log("Player Rolled:", payload.new);
+                    }
                 }
-            })
-            .subscribe();
+            )
+            .subscribe((status) => {
+                console.log("Supabase GM Realtime Status:", status);
+            });
+
+        return () => {
+            console.log("Cleaning up REALTIME listener");
+            supabase.removeChannel(subscription);
+        };
+    }, [user, selectedSessionId]);
+
+    // Realtime Listener for Investigator updates (HP, MP, Sanity on GM screen)
+    useEffect(() => {
+        if (!user || user.role !== 'KEEPER' || isLoadingData) return;
+
+        const subscription = supabase
+            .channel(`gm_investigators_updates_${selectedSessionId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'investigators'
+                },
+                (payload) => {
+                    const newData = {
+                        ...payload.new.data,
+                        id: payload.new.id,
+                        name: payload.new.name,
+                        occupation: payload.new.occupation
+                    };
+
+                    setInvestigators(prev => {
+                        const idx = prev.findIndex(c => c.id === payload.new.id);
+                        if (idx !== -1) {
+                            const newList = [...prev];
+                            newList[idx] = newData;
+                            return newList;
+                        }
+                        return prev;
+                    });
+
+                    // Se o GM estiver focado nesse investigador, atualize a ficha do hook local:
+                    setInvestigator(prevInv => {
+                        if (prevInv && prevInv.id === payload.new.id) {
+                            return newData;
+                        }
+                        return prevInv;
+                    });
+                }
+            )
+            .subscribe((status) => {
+                console.log("Supabase GM Investigator Realtime Status:", status);
+            });
 
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [user, selectedSessionId]);
+    }, [user, selectedSessionId, isLoadingData]);
 
     const fetchSessions = async () => {
         try {
@@ -154,6 +214,7 @@ export default function GMPage() {
 
     const fetchInvestigators = async (sessionId: string) => {
         setIsLoadingData(true);
+        setFetchError(null);
         try {
             let query = supabase.from('investigators').select('*').order('created_at', { ascending: false });
 
@@ -189,14 +250,15 @@ export default function GMPage() {
             }));
 
             setInvestigators(mapped);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            setFetchError(err.message || 'Erro ao carregar investigadores da sessão.');
         } finally {
             setIsLoadingData(false);
         }
     };
 
-    if (isLoading || !user || user.role !== 'KEEPER' || isLoadingData) return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Consultando Arquivos Confidenciais...</div>;
+    if (isLoading || !user || user.role !== 'KEEPER') return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Acessando Arquivos Confidenciais...</div>;
 
     const handleSelectInvestigator = (inv: Investigator) => {
         setInvestigator(inv); // Initialize the hook with the selected data
@@ -301,160 +363,165 @@ export default function GMPage() {
             </div>
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
-                {/* Left Column: List (4 cols) */}
-                <div className={`lg:col-span-4 overflow-y-auto pr-2 space-y-4 ${selectedId ? 'hidden lg:block' : 'col-span-12'}`}>
-                    {investigators.length === 0 && !isLoadingData && (
+                {/* Full Width Grid Container */}
+                <div className="col-span-12 overflow-y-auto pr-2 pb-8">
+                    {isLoadingData ? (
+                        <div className="text-center p-8 text-[var(--color-mythos-gold-dim)] animate-pulse">
+                            Consultando Arquivos da Sessão...
+                        </div>
+                    ) : fetchError ? (
+                        <div className="text-center p-8 bg-red-900/20 border border-red-500/50 rounded text-red-400">
+                            Aviso: {fetchError}
+                        </div>
+                    ) : investigators.length === 0 ? (
                         <div className="text-center p-8 text-[var(--color-mythos-gold-dim)]">
                             <p>Nenhum investigador encontrado nesta sessão.</p>
                             {selectedSessionId !== 'ALL' && (
                                 <p className="text-xs mt-2">Peça aos jogadores para usarem o código de convite no painel deles.</p>
                             )}
                         </div>
-                    )}
-                    {investigators.map((inv) => (
-                        <Card
-                            key={inv.id}
-                            onClick={() => handleSelectInvestigator(inv)}
-                            className={`cursor-pointer border-[var(--color-mythos-gold-dim)]/40 p-4 relative overflow-hidden group transition-all duration-300
-                                ${selectedId === inv.id
-                                    ? 'bg-[var(--color-mythos-green)]/30 border-[var(--color-mythos-gold)] ring-1 ring-[var(--color-mythos-gold)]'
-                                    : 'bg-[#120a0a] hover:border-[var(--color-mythos-blood)]/50 hover:bg-[var(--color-mythos-green)]/10'
-                                }
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {investigators.map((inv) => (
+                                <Card
+                                    key={inv.id}
+                                    onClick={() => handleSelectInvestigator(inv)}
+                                    className={`cursor-pointer border-[var(--color-mythos-gold-dim)]/40 p-4 relative overflow-hidden group transition-all duration-300
+                                    ${selectedId === inv.id
+                                            ? 'bg-[var(--color-mythos-green)]/30 border-[var(--color-mythos-gold)] ring-1 ring-[var(--color-mythos-gold)]'
+                                            : 'bg-[#120a0a] hover:border-[var(--color-mythos-blood)]/50 hover:bg-[var(--color-mythos-green)]/10'
+                                        }
                             `}
-                        >
-                            {/* Status Stripe */}
-                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${inv.derivedStats.hp.current < 5 ? 'bg-[var(--color-mythos-blood)] animate-pulse' :
-                                inv.derivedStats.sanity.current < 30 ? 'bg-orange-600' : 'bg-[var(--color-mythos-gold-dim)]'
-                                }`} />
+                                >
+                                    {/* Status Stripe */}
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${inv.derivedStats.hp.current < 5 ? 'bg-[var(--color-mythos-blood)] animate-pulse' :
+                                        inv.derivedStats.sanity.current < 30 ? 'bg-orange-600' : 'bg-[var(--color-mythos-gold-dim)]'
+                                        }`} />
 
-                            <div className="pl-4 flex flex-col gap-4">
-                                {/* Header */}
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-[var(--color-mythos-parchment)] font-heading">{inv.name}</h3>
-                                        <p className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider">{inv.occupation}</p>
-                                    </div>
-                                    {selectedId === inv.id && <Eye className="w-4 h-4 text-[var(--color-mythos-gold)]" />}
-                                </div>
-
-                                {/* Vitals Grid - Compact for list view */}
-                                <div className="grid grid-cols-3 gap-2">
-                                    {/* HP */}
-                                    <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                        <div className="flex items-center gap-1 text-[var(--color-mythos-blood)] mb-1">
-                                            <Heart className="w-3 h-3 fill-current" />
-                                            <span className="text-[0.6rem] font-bold uppercase">HP</span>
+                                    <div className="pl-4 flex flex-col gap-4">
+                                        {/* Header */}
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-[var(--color-mythos-parchment)] font-heading">{inv.name}</h3>
+                                                <p className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider">{inv.occupation}</p>
+                                            </div>
+                                            {selectedId === inv.id && <Eye className="w-4 h-4 text-[var(--color-mythos-gold)]" />}
                                         </div>
-                                        <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
-                                            {inv.derivedStats.hp.current} <span className="text-[var(--color-mythos-gold-dim)] text-[0.6rem]">/ {inv.derivedStats.hp.max}</span>
-                                        </span>
-                                    </div>
 
-                                    {/* Sanity */}
-                                    <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                        <div className="flex items-center gap-1 text-blue-400 mb-1">
-                                            <Brain className="w-3 h-3" />
-                                            <span className="text-[0.6rem] font-bold uppercase">SAN</span>
-                                        </div>
-                                        <span className={`text-sm font-bold ${inv.derivedStats.sanity.current < 30 ? 'text-orange-500' : 'text-[var(--color-mythos-parchment)]'}`}>
-                                            {inv.derivedStats.sanity.current}
-                                        </span>
-                                    </div>
+                                        {/* Vitals Grid - Compact for list view */}
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {/* HP */}
+                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
+                                                <div className="flex items-center gap-1 text-[var(--color-mythos-blood)] mb-1">
+                                                    <Heart className="w-3 h-3 fill-current" />
+                                                    <span className="text-[0.6rem] font-bold uppercase">HP</span>
+                                                </div>
+                                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
+                                                    {inv.derivedStats.hp.current} <span className="text-[var(--color-mythos-gold-dim)] text-[0.6rem]">/ {inv.derivedStats.hp.max}</span>
+                                                </span>
+                                            </div>
 
-                                    {/* Magic Points */}
-                                    <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                        <div className="flex items-center gap-1 text-purple-400 mb-1">
-                                            <Zap className="w-3 h-3 fill-current" />
-                                            <span className="text-[0.6rem] font-bold uppercase">MP</span>
+                                            {/* Sanity */}
+                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
+                                                <div className="flex items-center gap-1 text-blue-400 mb-1">
+                                                    <Brain className="w-3 h-3" />
+                                                    <span className="text-[0.6rem] font-bold uppercase">SAN</span>
+                                                </div>
+                                                <span className={`text-sm font-bold ${inv.derivedStats.sanity.current < 30 ? 'text-orange-500' : 'text-[var(--color-mythos-parchment)]'}`}>
+                                                    {inv.derivedStats.sanity.current}
+                                                </span>
+                                            </div>
+
+                                            {/* Magic Points */}
+                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
+                                                <div className="flex items-center gap-1 text-purple-400 mb-1">
+                                                    <Zap className="w-3 h-3 fill-current" />
+                                                    <span className="text-[0.6rem] font-bold uppercase">MP</span>
+                                                </div>
+                                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
+                                                    {inv.derivedStats.magicPoints.current}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
-                                            {inv.derivedStats.magicPoints.current}
-                                        </span>
                                     </div>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {/* Right Column: Sheet Display (8 cols) */}
-                {selectedId && investigator ? (
-                    <div className="lg:col-span-8 h-full overflow-hidden border border-[var(--color-mythos-gold-dim)]/30 rounded-lg bg-[var(--color-mythos-black)]/50 relative flex flex-col animate-in slide-in-from-right-4 duration-500">
-                        {/* Top bar for GM actions on this investigator */}
-                        <div className="absolute top-2 right-4 z-[60] flex items-center gap-2">
-                            {selectedSessionId !== 'ALL' && (
-                                <Button
-                                    size="sm"
-                                    variant="mythos"
-                                    onClick={() => setShowRollModal(true)}
-                                    className="h-8 shadow-[0_0_10px_rgba(184,134,11,0.2)]"
-                                >
-                                    Solicitar Teste
+                {/* Modal: Sheet Display */}
+                {selectedId && investigator && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 lg:p-8 animate-in fade-in duration-300">
+                        <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden border border-[var(--color-mythos-gold-dim)]/50 rounded-lg bg-[#0a0707] relative flex flex-col shadow-[0_0_50px_rgba(184,134,11,0.15)] animate-in zoom-in-95 duration-300">
+                            {/* Top bar for GM actions on this investigator */}
+                            <div className="absolute top-2 right-4 z-[60] flex items-center gap-2 bg-black/50 p-1 rounded-md backdrop-blur-md">
+                                {selectedSessionId !== 'ALL' && (
+                                    <Button
+                                        size="sm"
+                                        variant="mythos"
+                                        onClick={() => setShowRollModal(true)}
+                                        className="h-8 shadow-[0_0_10px_rgba(184,134,11,0.2)]"
+                                    >
+                                        Solicitar Teste
+                                    </Button>
+                                )}
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-900/20 bg-black/50" onClick={handleClose}>
+                                    <X className="w-5 h-5" />
                                 </Button>
-                            )}
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-900/20 lg:hidden" onClick={handleClose}>
-                                <X className="w-4 h-4" />
-                            </Button>
-                        </div>
+                            </div>
 
-                        {/* Roll Request Quick Modal overlay */}
-                        {showRollModal && (
-                            <div className="absolute inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-                                <div className="bg-[#120a0a] border-2 border-[var(--color-mythos-gold)] p-6 rounded max-w-sm w-full space-y-4">
-                                    <h3 className="text-xl font-heading text-[var(--color-mythos-blood)] uppercase tracking-widest border-b border-[var(--color-mythos-gold-dim)]/30 pb-2">Exigir Rolagem</h3>
-                                    <p className="text-sm text-[var(--color-mythos-parchment)]/70 italic mb-4">
-                                        Força o jogador <strong>{investigator.name}</strong> a fazer um teste na tela dele.
-                                    </p>
+                            {/* Roll Request Quick Modal overlay */}
+                            {showRollModal && (
+                                <div className="absolute inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                                    <div className="bg-[#120a0a] border-2 border-[var(--color-mythos-gold)] p-6 rounded max-w-sm w-full space-y-4">
+                                        <h3 className="text-xl font-heading text-[var(--color-mythos-blood)] uppercase tracking-widest border-b border-[var(--color-mythos-gold-dim)]/30 pb-2">Exigir Rolagem</h3>
+                                        <p className="text-sm text-[var(--color-mythos-parchment)]/70 italic mb-4">
+                                            Força o jogador <strong>{investigator.name}</strong> a fazer um teste na tela dele.
+                                        </p>
 
-                                    <div className="space-y-4 font-serif">
-                                        <div>
-                                            <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Nome do Teste (Ex: Encontrar)</label>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
-                                                value={rollSkillName}
-                                                onChange={e => setRollSkillName(e.target.value)}
-                                                placeholder="Sanidade, Força, Escutar..."
-                                            />
+                                        <div className="space-y-4 font-serif">
+                                            <div>
+                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Nome do Teste (Ex: Encontrar)</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
+                                                    value={rollSkillName}
+                                                    onChange={e => setRollSkillName(e.target.value)}
+                                                    placeholder="Sanidade, Força, Escutar..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Valor Alvo (O valor na ficha)</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
+                                                    value={rollTargetValue}
+                                                    onChange={e => setRollTargetValue(e.target.value)}
+                                                    placeholder="Ex: 50"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Valor Alvo (O valor na ficha)</label>
-                                            <input
-                                                type="number"
-                                                className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
-                                                value={rollTargetValue}
-                                                onChange={e => setRollTargetValue(e.target.value)}
-                                                placeholder="Ex: 50"
-                                            />
-                                        </div>
-                                    </div>
 
-                                    <div className="flex justify-end gap-2 pt-4">
-                                        <Button variant="ghost" onClick={() => setShowRollModal(false)} className="text-gray-400">Cancelar</Button>
-                                        <Button variant="mythos" onClick={handleSendRollRequest}>Enviar Exigência</Button>
+                                        <div className="flex justify-end gap-2 pt-4">
+                                            <Button variant="ghost" onClick={() => setShowRollModal(false)} className="text-gray-400">Cancelar</Button>
+                                            <Button variant="mythos" onClick={handleSendRollRequest}>Enviar Exigência</Button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold)] scrollbar-track-black/20">
-                            <CharacterSheetDisplay
-                                investigator={investigator}
-                                onAttributeChange={handleAttributeChange}
-                                onInfoChange={handleInfoChange}
-                                onSkillChange={handleSkillChange}
-                                onClose={handleClose}
-                                isDialog={true}
-                            />
-                        </div>
-                    </div>
-                ) : (
-                    /* Placeholder when nothing selected */
-                    <div className="hidden lg:flex lg:col-span-8 h-full items-center justify-center border-2 border-dashed border-[var(--color-mythos-gold-dim)]/20 rounded-lg bg-[var(--color-mythos-black)]/20 text-[var(--color-mythos-gold-dim)]/50">
-                        <div className="text-center">
-                            <Eye className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                            <p className="text-xl uppercase tracking-widest font-heading">Select an Investigator</p>
-                            <p className="text-sm font-serif italic">to inspect their detailed records</p>
+                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold)] scrollbar-track-black/20">
+                                <CharacterSheetDisplay
+                                    investigator={investigator}
+                                    onAttributeChange={handleAttributeChange}
+                                    onInfoChange={handleInfoChange}
+                                    onSkillChange={handleSkillChange}
+                                    onClose={handleClose}
+                                    isDialog={true}
+                                    isReadOnly={true}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}

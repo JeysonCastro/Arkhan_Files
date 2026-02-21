@@ -16,6 +16,7 @@ interface Props {
     onSave?: () => void;
     onClose?: () => void; // Optional handler for close button
     isDialog?: boolean; // Changes header style if in dialog
+    isReadOnly?: boolean; // Disables editing if true
 }
 
 const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
@@ -25,7 +26,8 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
     onSkillChange,
     onSave,
     onClose,
-    isDialog = false
+    isDialog = false,
+    isReadOnly = false // Extracting the prop here
 }: Props) {
     const [activeTab, setActiveTab] = useState<'front' | 'back'>('front');
 
@@ -74,7 +76,7 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
 
                     {activeTab === 'front' ? (
                         <>
-                            <CharacterSheetHeader investigator={investigator} onChange={onInfoChange} />
+                            <CharacterSheetHeader investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
 
                             <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
 
@@ -82,6 +84,7 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
                                 attributes={investigator.attributes}
                                 derived={investigator.derivedStats}
                                 onChange={onAttributeChange}
+                                isReadOnly={isReadOnly}
                             />
 
                             <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
@@ -89,16 +92,16 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
                             {/* Render Skills only if initialized */}
                             {(investigator.skills || []).length > 0 && (
                                 <div className="space-y-6">
-                                    <CharacterSheetSkills skills={investigator.skills} onChange={onSkillChange} />
+                                    <CharacterSheetSkills skills={investigator.skills} onChange={onSkillChange} isReadOnly={isReadOnly} />
 
                                     <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
 
-                                    <CharacterSheetCombat investigator={investigator} onChange={onInfoChange} />
+                                    <CharacterSheetCombat investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
                                 </div>
                             )}
                         </>
                     ) : (
-                        <CharacterSheetBackstory investigator={investigator} onChange={onInfoChange} />
+                        <CharacterSheetBackstory investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
                     )}
 
                 </div>

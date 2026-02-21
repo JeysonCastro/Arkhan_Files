@@ -6,9 +6,10 @@ import { InfoPopover } from "@/components/ui/info-popover"; // Import InfoPopove
 interface Props {
     skills: Skill[];
     onChange: (index: number, field: keyof Skill, value: number | boolean | string) => void;
+    isReadOnly?: boolean;
 }
 
-export default function CharacterSheetSkills({ skills, onChange }: Props) {
+export default function CharacterSheetSkills({ skills, onChange, isReadOnly }: Props) {
     // Split skills into 3 columns
     const itemsPerCol = Math.ceil(skills.length / 3);
     const col1 = skills.slice(0, itemsPerCol);
@@ -26,8 +27,8 @@ export default function CharacterSheetSkills({ skills, onChange }: Props) {
                 return (
                     <div key={skill.name} className="flex items-center gap-1 text-sm border-b border-[var(--color-mythos-gold-dim)]/30 pb-1 hover:bg-[var(--color-mythos-green)]/30 transition-colors">
                         {/* Checkbox de evolução */}
-                        <div className="relative flex items-center justify-center w-4 h-4 border border-[var(--color-mythos-gold-dim)] cursor-pointer bg-[var(--color-mythos-black)]/50 shrink-0 hover:border-[var(--color-mythos-gold)]"
-                            onClick={() => onChange(globalIndex, "checked", !skill.checked)}>
+                        <div className={`relative flex items-center justify-center w-4 h-4 border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)]/50 shrink-0 ${!isReadOnly ? 'cursor-pointer hover:border-[var(--color-mythos-gold)]' : ''}`}
+                            onClick={() => !isReadOnly && onChange(globalIndex, "checked", !skill.checked)}>
                             {skill.checked && <div className="w-2 h-2 bg-[var(--color-mythos-gold)]" />}
                         </div>
 
@@ -44,12 +45,13 @@ export default function CharacterSheetSkills({ skills, onChange }: Props) {
                         <Input
                             type="number"
                             value={total}
+                            readOnly={isReadOnly}
                             onChange={(e) => {
                                 const newVal = parseInt(e.target.value) || 0;
                                 const added = newVal - (skill.baseChance || 0);
                                 onChange(globalIndex, "pointsAdded", added);
                             }}
-                            className="vintage-input w-10 text-center font-bold h-6 p-0 text-sm text-[var(--color-mythos-gold)] border-b border-[var(--color-mythos-gold-dim)] focus:border-[var(--color-mythos-gold)] bg-transparent"
+                            className="vintage-input w-10 text-center font-bold h-6 p-0 text-sm text-[var(--color-mythos-gold)] border-b border-[var(--color-mythos-gold-dim)] focus:border-[var(--color-mythos-gold)] bg-transparent disabled:opacity-70"
                         />
 
                         {/* Half / Fifth (Small) */}
