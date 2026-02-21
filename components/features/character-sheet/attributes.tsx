@@ -39,7 +39,7 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                     {/* Borda decorativa externa */}
                     <div className="grid grid-cols-4 gap-x-6 gap-y-4 pr-6">
                         {ATTRIBUTE_LIST.map((attr) => {
-                            const val = attributes[attr].base;
+                            const val = attributes?.[attr]?.base || 0;
                             // Large input for big attributes (STR, DEX, etc)
                             // Layout: LABEL [ BOX ] fractions
                             return (
@@ -68,16 +68,16 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                     <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/30 relative">
                         <Label className="absolute -top-3 left-2 bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] px-2 text-xs font-bold uppercase text-[var(--color-mythos-gold)]">Pontos de Vida</Label>
                         <div className="flex justify-between items-center mb-1 text-[var(--color-mythos-parchment)]">
-                            <span className="text-xs">Máximo: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived.hp.max}</span></span>
+                            <span className="text-xs">Máximo: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.hp?.max || 0}</span></span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-mythos-gold)]">Atual:</span>
-                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-blood)] font-bold p-0" value={derived.hp.current} readOnly />
+                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-blood)] font-bold p-0" value={derived?.hp?.current || 0} readOnly />
                             </div>
                         </div>
                         {/* Grid de números para marcar (visual only for now) */}
                         <div className="grid grid-cols-10 gap-px text-[0.55rem] text-center opacity-80">
                             {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
-                                <span key={n} className={n <= derived.hp.current ? "font-bold text-[var(--color-mythos-blood)]" : "text-[var(--color-mythos-gold-dim)]/30 decoration-line-through"}>{n.toString().padStart(2, '0')}</span>
+                                <span key={n} className={n <= (derived?.hp?.current || 0) ? "font-bold text-[var(--color-mythos-blood)]" : "text-[var(--color-mythos-gold-dim)]/30 decoration-line-through"}>{n.toString().padStart(2, '0')}</span>
                             ))}
                         </div>
                     </div>
@@ -86,16 +86,16 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                     <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/30 relative">
                         <Label className="absolute -top-3 left-2 bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] px-2 text-xs font-bold uppercase text-[var(--color-mythos-gold)]">Sanidade</Label>
                         <div className="flex justify-between items-center mb-1 text-[var(--color-mythos-parchment)]">
-                            <span className="text-xs">Inicial: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived.sanity.start}</span></span>
+                            <span className="text-xs">Inicial: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.sanity?.start || 0}</span></span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-mythos-gold)]">Atual:</span>
-                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-sanity)] font-bold p-0" value={derived.sanity.current} readOnly />
+                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-sanity)] font-bold p-0" value={derived?.sanity?.current || 0} readOnly />
                             </div>
                         </div>
                         <div className="grid grid-cols-10 gap-px text-[0.55rem] text-center opacity-80">
                             {/* Showing a subset purely for visual texture */}
                             {Array.from({ length: 30 }, (_, i) => i + 40).map(n => (
-                                <span key={n} className={n <= derived.sanity.current ? "font-bold text-[var(--color-mythos-sanity)]" : "text-[var(--color-mythos-gold-dim)]/30"}>{n}</span>
+                                <span key={n} className={n <= (derived?.sanity?.current || 0) ? "font-bold text-[var(--color-mythos-sanity)]" : "text-[var(--color-mythos-gold-dim)]/30"}>{n}</span>
                             ))}
                         </div>
                     </div>
@@ -106,7 +106,7 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                         <div className="flex justify-end items-center mb-1 text-[var(--color-mythos-parchment)]">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-mythos-gold)]">Atual:</span>
-                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-gold)] font-bold p-0" value={attributes.LUCK?.current || 50} readOnly />
+                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-gold)] font-bold p-0" value={attributes?.LUCK?.current || 50} readOnly />
                             </div>
                         </div>
                         <div className="grid grid-cols-10 gap-px text-[0.55rem] text-center opacity-80">
@@ -120,15 +120,15 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                     <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/30 relative">
                         <Label className="absolute -top-3 left-2 bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] px-2 text-xs font-bold uppercase text-[var(--color-mythos-gold)]">Pts de Magia</Label>
                         <div className="flex justify-between items-center mb-1 text-[var(--color-mythos-parchment)]">
-                            <span className="text-xs">Máximo: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived.magicPoints.max}</span></span>
+                            <span className="text-xs">Máximo: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.magicPoints?.max || 0}</span></span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-mythos-gold)]">Atual:</span>
-                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-parchment)] font-bold p-0" value={derived.magicPoints.current} readOnly />
+                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-parchment)] font-bold p-0" value={derived?.magicPoints?.current || 0} readOnly />
                             </div>
                         </div>
                         <div className="grid grid-cols-10 gap-px text-[0.55rem] text-center opacity-80">
                             {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
-                                <span key={n} className={n <= derived.magicPoints.current ? "font-bold text-[var(--color-mythos-parchment)]" : "text-[var(--color-mythos-gold-dim)]/30"}>{n.toString().padStart(2, '0')}</span>
+                                <span key={n} className={n <= (derived?.magicPoints?.current || 0) ? "font-bold text-[var(--color-mythos-parchment)]" : "text-[var(--color-mythos-gold-dim)]/30"}>{n.toString().padStart(2, '0')}</span>
                             ))}
                         </div>
                     </div>
@@ -139,9 +139,9 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
             {/* Movimento e Info Adicional */}
             <div className="flex justify-between border-t border-[var(--color-mythos-gold-dim)] pt-2 text-sm mt-2 text-[var(--color-mythos-parchment)]">
                 <div className="flex gap-4">
-                    <div>Taxa de Movimento: <span className="font-bold border border-[var(--color-mythos-gold-dim)] px-2 text-[var(--color-mythos-gold)]">{derived.moveRate}</span></div>
-                    <div>Dano Bônus: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived.damageBonus}</span></div>
-                    <div>Corpo (Build): <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived.build}</span></div>
+                    <div>Taxa de Movimento: <span className="font-bold border border-[var(--color-mythos-gold-dim)] px-2 text-[var(--color-mythos-gold)]">{derived?.moveRate || 0}</span></div>
+                    <div>Dano Bônus: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.damageBonus || ''}</span></div>
+                    <div>Corpo (Build): <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.build || 0}</span></div>
                 </div>
             </div>
 

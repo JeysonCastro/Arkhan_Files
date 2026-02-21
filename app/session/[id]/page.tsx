@@ -77,6 +77,7 @@ export default function PlayerSessionView() {
                         occupation: inv.occupation,
                         playerName: profile ? profile.username : 'Desconhecido',
                         isCurrentUser: inv.user_id === user?.id,
+                        avatar: investigatorData?.avatar || null,
                         portrait: investigatorData?.personalData?.portrait || null,
                         hp: investigatorData?.derivedStats?.hp || { current: 0, max: 0 },
                         sanity: investigatorData?.derivedStats?.sanity || { current: 0, max: 0 },
@@ -120,6 +121,7 @@ export default function PlayerSessionView() {
                             hp: invData?.derivedStats?.hp || { current: 0, max: 0 },
                             sanity: invData?.derivedStats?.sanity || { current: 0, max: 0 },
                             mp: invData?.derivedStats?.magicPoints || { current: 0, max: 0 },
+                            avatar: invData?.avatar || newCompanions[idx].avatar,
                             portrait: invData?.personalData?.portrait || newCompanions[idx].portrait
                         };
                         return newCompanions;

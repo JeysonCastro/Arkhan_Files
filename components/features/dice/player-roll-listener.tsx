@@ -13,7 +13,7 @@ interface PlayerRollListenerProps {
 export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollListenerProps) {
     const [activeRequest, setActiveRequest] = useState<any>(null);
     const [isRolling, setIsRolling] = useState(false);
-    const [rollResult, setRollResult] = useState<{ number: number, type: string } | null>(null);
+    const [rollResult, setRollResult] = useState<{ number: number, type: string | null } | null>(null);
 
     useEffect(() => {
         if (!sessionId || !investigatorId) return;
@@ -73,10 +73,21 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
 
         // Fake suspense timeout
         setTimeout(async () => {
-            const result = Math.floor(Math.random() * 100) + 1;
-            const successType = calculateDegreeOfSuccess(result, activeRequest.target_value);
+            const diceTypeStr = activeRequest.dice_type || 'd100';
+            const sides = parseInt(diceTypeStr.replace('d', '')) || 100;
+            const count = activeRequest.dice_count || 1;
 
-            setRollResult({ number: result, type: successType });
+            let total = 0;
+            for (let i = 0; i < count; i++) {
+                total += Math.floor(Math.random() * sides) + 1;
+            }
+
+            let successType: string | null = null;
+            if (diceTypeStr === 'd100' && activeRequest.target_value != null) {
+                successType = calculateDegreeOfSuccess(total, activeRequest.target_value);
+            }
+
+            setRollResult({ number: total, type: successType });
 
             // Extrair o token atual para enviar no POST puro contornando falhas no Supabase Client
             supabase.auth.getSession().then(({ data: { session } }) => {
@@ -95,7 +106,7 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
                     },
                     body: JSON.stringify({
                         status: 'ROLLED',
-                        result_roll: result,
+                        result_roll: total,
                         result_type: successType
                     })
                 })
@@ -119,14 +130,15 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
 
     if (!activeRequest) return null;
 
-    const getSuccessColor = (type: string) => {
+    const getSuccessColor = (type: string | null) => {
+        if (!type) return 'text-white';
         switch (type) {
             case 'CRITICAL': return 'text-blue-400';
             case 'EXTREME': return 'text-[var(--color-mythos-gold)]';
             case 'HARD': return 'text-green-400';
             case 'SUCCESS': return 'text-green-600';
             case 'FAILURE': return 'text-red-400';
-            case 'FUMBLE': return 'text-red-600';
+            case 'FUMBLE': return 'text-red-600 font-bold';
             default: return 'text-white';
         }
     };
@@ -147,9 +159,11 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
                     <div>
                         <h2 className="text-2xl font-black font-heading tracking-widest uppercase text-[var(--color-mythos-blood)] mb-2">O Guardião Exige um Teste!</h2>
                         <p className="text-[var(--color-mythos-gold-dim)] italic text-lg font-serif">
-                            Role contra seu <strong className="text-[var(--color-mythos-gold)] uppercase ml-1">{activeRequest.skill_name}</strong>
+                            Role <strong className="text-[var(--color-mythos-gold)] uppercase ml-1">{activeRequest.dice_count || 1}{activeRequest.dice_type || 'd100'}</strong> para <strong className="text-[var(--color-mythos-gold)] uppercase ml-1">{activeRequest.skill_name}</strong>
                         </p>
-                        <p className="text-sm mt-1 text-gray-500">Valor Alvo: {activeRequest.target_value}</p>
+                        {activeRequest.target_value != null && (
+                            <p className="text-sm mt-1 text-gray-500">Valor Alvo: {activeRequest.target_value}</p>
+                        )}
                     </div>
 
                     {!rollResult ? (
@@ -162,7 +176,7 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
                             {isRolling ? (
                                 <span className="animate-pulse flex items-center gap-2"><Dices className="animate-spin" /> Rolando...</span>
                             ) : (
-                                "Rolar d100"
+                                `Rolar ${activeRequest.dice_count || 1}${activeRequest.dice_type || 'd100'}`
                             )}
                         </Button>
                     ) : (
@@ -170,9 +184,11 @@ export function PlayerRollListener({ sessionId, investigatorId }: PlayerRollList
                             <span className="text-7xl font-black text-[var(--color-mythos-parchment)] shadow-black drop-shadow-lg">
                                 {rollResult.number}
                             </span>
-                            <span className={`text-2xl font-bold uppercase tracking-widest ${getSuccessColor(rollResult.type)} shadow-black drop-shadow-md`}>
-                                {rollResult.type}
-                            </span>
+                            {rollResult.type && (
+                                <span className={`text-2xl font-bold uppercase tracking-widest ${getSuccessColor(rollResult.type)} shadow-black drop-shadow-md`}>
+                                    {rollResult.type}
+                                </span>
+                            )}
                             <p className="text-[var(--color-mythos-gold-dim)]/50 text-xs mt-4 italic">Notificando o Guardião...</p>
                         </div>
                     )}

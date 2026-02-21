@@ -69,4 +69,6 @@ export interface Investigator {
 
     // Weapons
     weapons: Weapon[];
+
+    avatar?: any; // Avatar Paperdoll config
 }

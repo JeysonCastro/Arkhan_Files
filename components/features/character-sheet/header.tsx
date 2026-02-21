@@ -5,6 +5,7 @@ import { OCCUPATIONS_PTBR } from "@/lib/data-ptbr"; // Use PT-BR data
 import { InfoPopover } from "@/components/ui/info-popover"; // Import InfoPopover
 import { useRef } from "react";
 import { Upload, Camera } from "lucide-react";
+import { InvestigatorBadge } from "@/components/ui/investigator-badge";
 
 interface Props {
     investigator: Investigator;
@@ -144,9 +145,9 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
 
                 {/* Portrait / Logo Area */}
                 <div
-                    className={`md:col-span-3 flex flex-col items-center justify-center border-2 border-[var(--color-mythos-gold)] p-2 bg-[var(--color-mythos-black)]/30 relative group overflow-hidden aspect-[3/4] shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] ${!isReadOnly ? 'cursor-pointer' : ''}`}
+                    className={`md:col-span-3 flex flex-col items-center justify-center p-2 relative group overflow-visible ${!isReadOnly ? 'cursor-pointer' : ''}`}
                     onClick={() => !isReadOnly && fileInputRef.current?.click()}
-                    title={!isReadOnly ? "Clique para adicionar uma foto" : "Retrato do Investigador"}
+                    title={!isReadOnly ? "Clique na foto para alterar" : "Retrato do Investigador"}
                 >
                     <input
                         type="file"
@@ -156,25 +157,13 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                         className="hidden"
                     />
 
-                    {investigator.portrait ? (
-                        <>
-                            <img
-                                src={investigator.portrait}
-                                alt="Retrato do Investigador"
-                                className="w-full h-full object-cover grayscale sepia-[.3] contrast-125 hover:grayscale-0 hover:sepia-0 transition-all duration-500"
-                            />
-                            {!isReadOnly && (
-                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="text-[var(--color-mythos-gold)] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                                        <Camera className="w-4 h-4" /> Alterar
-                                    </span>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="w-full h-full border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center justify-center text-center text-[var(--color-mythos-gold-dim)] italic p-4 hover:bg-[var(--color-mythos-green)]/10 transition-colors">
-                            <Upload className="w-8 h-8 mb-2 opacity-50" />
-                            <span className="text-xs">Clique para adicionar foto</span>
+                    <InvestigatorBadge investigator={investigator} size="lg" className="scale-90 md:scale-100" />
+
+                    {!isReadOnly && (
+                        <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 rounded-full w-32 h-32 md:w-32 md:h-32">
+                            <span className="text-[var(--color-mythos-gold)] text-xs font-bold uppercase tracking-widest flex flex-col items-center gap-1 text-center font-[family-name:--font-typewriter]">
+                                <Camera className="w-6 h-6" /> Alterar Foto
+                            </span>
                         </div>
                     )}
                 </div>

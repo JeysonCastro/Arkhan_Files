@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
 import { useInvestigator } from "@/hooks/use-investigator";
+import { AvatarDisplay } from "@/components/features/avatar/avatar-creator";
 
 interface CompanionCardProps {
     companion: any;
@@ -82,113 +83,127 @@ export function CompanionCard({ companion }: CompanionCardProps) {
     const { investigator, handleAttributeChange, handleInfoChange, handleSkillChange } = useInvestigator(showSheet ? companion.id : null);
 
 
+    // Calculo de UI das Barras
+    const hpPercent = Math.max(0, Math.min(100, (localHp / companion.hp.max) * 100));
+    const sanityPercent = Math.max(0, Math.min(100, (localSanity / companion.sanity.max) * 100));
+    const mpPercent = Math.max(0, Math.min(100, (localMp / companion.mp.max) * 100));
+
     return (
         <>
             <div
-                className={`relative border rounded-lg overflow-hidden flex flex-col transition-all duration-300 ${isCurrentUser
-                    ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-green)]/10 shadow-[0_0_15px_rgba(255,215,0,0.1)]'
-                    : 'border-[var(--color-mythos-gold-dim)]/40 bg-[#120a0a]'
-                    }`}
+                className={`relative flex flex-col md:flex-row items-center md:items-start transition-all duration-300 ${isCurrentUser ? 'scale-[1.02]' : 'opacity-90 grayscale-[0.2]'}`}
             >
-                {/* Portrait / Header */}
-                <div className="h-40 bg-black/60 relative border-b border-[var(--color-mythos-gold-dim)]/30 flex items-center justify-center overflow-hidden group">
-                    {companion.portrait ? (
+                {/* 1. Avatar Circular com Borda Grossa */}
+                <div className={`relative shrink-0 rounded-full border-4 border-black bg-[#99a997] shadow-xl overflow-hidden z-20 w-32 h-32 md:w-40 md:h-40 ${isCurrentUser ? 'ring-2 ring-[var(--color-mythos-gold)] ring-offset-2 ring-offset-[#050a05]' : ''}`}>
+                    {companion.avatar ? (
+                        <div className="absolute inset-0 scale-[1.3] translate-y-2">
+                            <AvatarDisplay config={companion.avatar} />
+                        </div>
+                    ) : companion.portrait ? (
                         <img
                             src={companion.portrait}
                             alt={companion.characterName}
-                            className="object-cover w-full h-full opacity-80"
+                            className="w-full h-full object-cover scale-[1.3] translate-y-2"
                             onError={(e) => {
                                 e.currentTarget.style.display = 'none';
                                 e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
                             }}
                         />
-                    ) : null}
-
-                    <User className={`w-16 h-16 text-[var(--color-mythos-gold-dim)]/20 fallback-icon ${companion.portrait ? 'hidden absolute' : ''}`} />
-
-                    {/* Ver Ficha Button for player */}
-                    {isCurrentUser && (
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
-                            <Button
-                                variant="mythos"
-                                size="sm"
-                                onClick={() => setShowSheet(true)}
-                                className="flex items-center gap-2"
-                            >
-                                <Maximize2 className="w-4 h-4" /> Ver Ficha
-                            </Button>
+                    ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gray-400 fallback-icon">
+                            <User className="w-12 h-12 text-[var(--color-mythos-gold-dim)]/20" />
                         </div>
                     )}
 
-                    {/* Overlay Gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 rounded-full shadow-[inset_0_0_15px_rgba(0,0,0,0.8)] pointer-events-none" />
 
-                    {/* Names */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-black/60 backdrop-blur-sm border-t border-[var(--color-mythos-gold-dim)]/20 pointer-events-none">
-                        <h2 className="text-lg font-bold text-[var(--color-mythos-parchment)] font-heading truncate">
-                            {companion.characterName}
-                        </h2>
-                        <p className="text-xs text-[var(--color-mythos-gold-dim)] truncate uppercase tracking-widest flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            Jogado por: {companion.playerName} {isCurrentUser && '(Você)'}
-                        </p>
-                    </div>
+                    {/* Ver Ficha Button for player */}
+                    {isCurrentUser && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer z-30" onClick={() => setShowSheet(true)}>
+                            <Maximize2 className="w-8 h-8 text-[var(--color-mythos-gold)]" />
+                        </div>
+                    )}
                 </div>
 
-                {/* Vitals Body */}
-                <div className="p-4 grid grid-cols-3 gap-2 flex-grow">
-                    {/* HP */}
-                    <div className="bg-black/40 rounded border border-[var(--color-mythos-blood)]/20 p-2 flex flex-col items-center justify-center relative overflow-hidden group">
-                        <div className={`absolute bottom-0 left-0 right-0 bg-[var(--color-mythos-blood)]/10 z-0 transition-all ${localHp < 5 ? 'h-full animate-pulse bg-[var(--color-mythos-blood)]/30' : 'h-1/3'}`} />
-                        <Heart className="w-4 h-4 text-[var(--color-mythos-blood)] mb-1 z-10" />
-                        <div className="z-10 flex items-center">
-                            {isCurrentUser ? (
-                                <Input
-                                    type="number"
-                                    value={localHp}
-                                    onChange={handleHpChange}
-                                    className="w-10 h-6 p-0 text-center text-sm font-bold bg-transparent border-b border-[var(--color-mythos-blood)] focus:border-white shadow-none placeholder-[#ffffff00] text-[var(--color-mythos-parchment)]"
-                                />
-                            ) : (
-                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">{localHp}</span>
-                            )}
-                            <span className="text-[10px] text-[var(--color-mythos-gold-dim)] ml-1">/ {companion.hp.max}</span>
+                {/* 2. Informações: Nome em Fita e Barras Mágicas */}
+                <div className="flex flex-col z-10 flex-1 w-full md:w-auto -mt-6 md:mt-4 md:-ml-8 px-4 md:px-0">
+
+                    {/* Etiqueta de Texto "Papel Rasgado / Fita Crepe" */}
+                    <div className="bg-[#e8e6df] text-black border-2 border-black rotate-[-1deg] shadow-md origin-left z-20 py-2 px-4 md:pl-10"
+                        style={{ clipPath: 'polygon(0% 0%, 98% 2%, 100% 95%, 2% 100%)' }}
+                    >
+                        <div className="font-[family-name:--font-typewriter] font-bold uppercase tracking-widest truncate text-xl text-center md:text-left">
+                            {companion.characterName || 'Desconhecido'}
+                        </div>
+                        <div className="text-[10px] font-[family-name:--font-typewriter] font-bold tracking-widest text-black/60 uppercase truncate text-center md:text-left">
+                            Jogado por {companion.playerName} {isCurrentUser && '(Você)'}
                         </div>
                     </div>
 
-                    {/* Sanity */}
-                    <div className="bg-black/40 rounded border border-blue-900/30 p-2 flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className={`absolute bottom-0 left-0 right-0 bg-blue-900/10 z-0 transition-all ${localSanity < 30 ? 'h-full animate-pulse bg-orange-900/40 border-orange-500' : 'h-1/3'}`} />
-                        <Brain className={`w-4 h-4 mb-1 z-10 ${localSanity < 30 ? 'text-orange-500' : 'text-blue-400'}`} />
-                        <div className="z-10 flex items-center">
-                            {isCurrentUser ? (
-                                <Input
-                                    type="number"
-                                    value={localSanity}
-                                    onChange={handleSanityChange}
-                                    className={`w-10 h-6 p-0 text-center text-sm font-bold bg-transparent border-b border-blue-400 focus:border-white shadow-none placeholder-[#ffffff00] ${localSanity < 30 ? 'text-orange-400' : 'text-[var(--color-mythos-parchment)]'}`}
-                                />
-                            ) : (
-                                <span className={`text-sm font-bold z-10 ${localSanity < 30 ? 'text-orange-400' : 'text-[var(--color-mythos-parchment)]'}`}>{localSanity}</span>
-                            )}
-                        </div>
-                    </div>
+                    {/* Barras de Status container */}
+                    <div className="flex flex-col border-2 border-black border-t-0 bg-black mt-[-4px] md:ml-[15px] overflow-hidden w-[95%] mx-auto md:w-[105%]">
 
-                    {/* MP */}
-                    <div className="bg-black/40 rounded border border-purple-900/30 p-2 flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className="absolute bottom-0 left-0 right-0 bg-purple-900/10 h-1/3 z-0" />
-                        <Zap className="w-4 h-4 text-purple-400 mb-1 z-10" />
-                        <div className="z-10 flex items-center">
-                            {isCurrentUser ? (
-                                <Input
-                                    type="number"
-                                    value={localMp}
-                                    onChange={handleMpChange}
-                                    className="w-10 h-6 p-0 text-center text-sm font-bold bg-transparent border-b border-purple-400 focus:border-white shadow-none placeholder-[#ffffff00] text-[var(--color-mythos-parchment)]"
-                                />
-                            ) : (
-                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)] z-10">{localMp}</span>
-                            )}
+                        {/* Barra de Vida (Vermelha) */}
+                        <div className="w-full bg-[#3d0000] border-b-2 border-black relative h-8 flex items-center">
+                            <div className="absolute top-0 left-0 h-full bg-[#bb1111] transition-all duration-500 ease-out" style={{ width: `${hpPercent}%` }} />
+                            <div className="absolute inset-0 flex items-center justify-between px-2 text-white shadow-black drop-shadow-md z-10 font-[family-name:--font-typewriter]">
+                                <Heart className="w-4 h-4 text-[#ffaaaa]" />
+                                <div className="flex items-center gap-1 font-bold">
+                                    {isCurrentUser ? (
+                                        <Input
+                                            type="number"
+                                            value={localHp}
+                                            onChange={handleHpChange}
+                                            className="w-12 h-6 p-0 text-right text-sm font-bold bg-transparent border-b border-white/50 focus:border-white shadow-none placeholder-[#ffffff00] focus:ring-0 rounded-none text-white"
+                                        />
+                                    ) : (
+                                        <span>{localHp}</span>
+                                    )}
+                                    <span className="text-white/70">/ {companion.hp.max}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Barra de Sanidade (Azul) */}
+                        <div className="w-full bg-[#001133] border-b-2 border-black relative h-8 flex items-center">
+                            <div className="absolute top-0 left-0 h-full bg-[#1144bb] transition-all duration-500 ease-out" style={{ width: `${sanityPercent}%` }} />
+                            <div className="absolute inset-0 flex items-center justify-between px-2 text-white shadow-black drop-shadow-md z-10 font-[family-name:--font-typewriter]">
+                                <Brain className="w-4 h-4 text-[#aaaaff]" />
+                                <div className="flex items-center gap-1 font-bold">
+                                    {isCurrentUser ? (
+                                        <Input
+                                            type="number"
+                                            value={localSanity}
+                                            onChange={handleSanityChange}
+                                            className="w-12 h-6 p-0 text-right text-sm font-bold bg-transparent border-b border-white/50 focus:border-white shadow-none placeholder-[#ffffff00] focus:ring-0 rounded-none text-white"
+                                        />
+                                    ) : (
+                                        <span>{localSanity}</span>
+                                    )}
+                                    <span className="text-white/70">/ {companion.sanity.max}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Barra de Magia/PE (Roxa) */}
+                        <div className="w-full bg-[#2a0033] relative h-8 flex items-center">
+                            <div className="absolute top-0 left-0 h-full bg-[#8822aa] transition-all duration-500 ease-out" style={{ width: `${mpPercent}%` }} />
+                            <div className="absolute inset-0 flex items-center justify-between px-2 text-white shadow-black drop-shadow-md z-10 font-[family-name:--font-typewriter]">
+                                <Zap className="w-4 h-4 text-[#eeaaff]" />
+                                <div className="flex items-center gap-1 font-bold">
+                                    {isCurrentUser ? (
+                                        <Input
+                                            type="number"
+                                            value={localMp}
+                                            onChange={handleMpChange}
+                                            className="w-12 h-6 p-0 text-right text-sm font-bold bg-transparent border-b border-white/50 focus:border-white shadow-none placeholder-[#ffffff00] focus:ring-0 rounded-none text-white"
+                                        />
+                                    ) : (
+                                        <span>{localMp}</span>
+                                    )}
+                                    <span className="text-white/70">/ {companion.mp.max}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

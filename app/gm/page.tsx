@@ -30,6 +30,8 @@ export default function GMPage() {
     const [showRollModal, setShowRollModal] = useState(false);
     const [rollSkillName, setRollSkillName] = useState("");
     const [rollTargetValue, setRollTargetValue] = useState("");
+    const [rollDiceCount, setRollDiceCount] = useState("1");
+    const [rollDiceType, setRollDiceType] = useState("d100");
 
     // State for the selected investigator (modal)
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -281,7 +283,9 @@ export default function GMPage() {
                 keeper_id: user?.id,
                 investigator_id: selectedId,
                 skill_name: rollSkillName,
-                target_value: parseInt(rollTargetValue),
+                target_value: rollTargetValue ? parseInt(rollTargetValue) : null,
+                dice_count: parseInt(rollDiceCount),
+                dice_type: rollDiceType,
                 status: 'PENDING'
             }]);
 
@@ -290,13 +294,16 @@ export default function GMPage() {
             setShowRollModal(false);
             setRollSkillName("");
             setRollTargetValue("");
+            setRollDiceCount("1");
+            setRollDiceType("d100");
         } catch (err) {
             console.error("Error creating roll request:", err);
             alert("Erro ao solicitar rolagem.");
         }
     };
 
-    const getSuccessColor = (type: string) => {
+    const getSuccessColor = (type: string | null) => {
+        if (!type) return 'text-[var(--color-mythos-gold-dim)]';
         switch (type) {
             case 'CRITICAL': return 'text-blue-400';
             case 'EXTREME': return 'text-[var(--color-mythos-gold)]';
@@ -491,14 +498,42 @@ export default function GMPage() {
                                                     placeholder="Sanidade, Força, Escutar..."
                                                 />
                                             </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Qtd. Dados</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
+                                                        value={rollDiceCount}
+                                                        onChange={e => setRollDiceCount(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Tipo de Dado</label>
+                                                    <Select value={rollDiceType} onValueChange={setRollDiceType}>
+                                                        <SelectTrigger className="w-full bg-black/50 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] h-[42px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-[#1a1010] border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-parchment)]">
+                                                            <SelectItem value="d4">d4</SelectItem>
+                                                            <SelectItem value="d6">d6</SelectItem>
+                                                            <SelectItem value="d8">d8</SelectItem>
+                                                            <SelectItem value="d10">d10</SelectItem>
+                                                            <SelectItem value="d20">d20</SelectItem>
+                                                            <SelectItem value="d100">d100 (%)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
                                             <div>
-                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Valor Alvo (O valor na ficha)</label>
+                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Valor Alvo (Opcional)</label>
                                                 <input
                                                     type="number"
                                                     className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
                                                     value={rollTargetValue}
                                                     onChange={e => setRollTargetValue(e.target.value)}
-                                                    placeholder="Ex: 50"
+                                                    placeholder="Deixe em branco p/ dano"
                                                 />
                                             </div>
                                         </div>
@@ -546,12 +581,14 @@ export default function GMPage() {
                                     </div>
                                     <div className="mt-1 flex justify-between items-end">
                                         <div className="flex flex-col">
-                                            <span className="text-xs text-[var(--color-mythos-gold-dim)]">{roll.skill_name} <span className="opacity-50">(Alvo: {roll.target_value})</span></span>
+                                            <span className="text-xs text-[var(--color-mythos-gold-dim)]">{roll.skill_name} <span className="opacity-50 font-mono">({roll.dice_count || 1}{roll.dice_type || 'd100'})</span> {roll.target_value != null && <span className="opacity-50">(Alvo: {roll.target_value})</span>}</span>
                                         </div>
                                         {roll.status === 'ROLLED' && (
                                             <div className="flex flex-col items-end">
                                                 <span className="text-lg font-bold text-[var(--color-mythos-parchment)] leading-none">{roll.result_roll}</span>
-                                                <span className={`text-[10px] font-bold ${getSuccessColor(roll.result_type)}`}>{roll.result_type}</span>
+                                                {roll.result_type && (
+                                                    <span className={`text-[10px] font-bold ${getSuccessColor(roll.result_type)}`}>{roll.result_type}</span>
+                                                )}
                                             </div>
                                         )}
                                     </div>

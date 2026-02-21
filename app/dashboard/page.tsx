@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
+import { InvestigatorBadge } from "@/components/ui/investigator-badge";
 
 export default function DashboardPage() {
     const { user, isLoading } = useAuth();
@@ -242,23 +243,19 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {investigators.map((inv) => (
-                    <div key={inv.id} className="group relative bg-[var(--color-mythos-green)]/40 border border-[var(--color-mythos-gold-dim)] rounded-sm p-6 hover:bg-[var(--color-mythos-green)]/60 hover:border-[var(--color-mythos-gold)] transition-all duration-500 hover:shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity text-[var(--color-mythos-gold)]">
-                            <Skull className="w-12 h-12" />
+                    <div key={inv.id} className="group relative bg-[#0a0f0a] border-2 border-[#1c2e1c] rounded p-6 hover:border-[#3d6e3d] transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.8)] flex flex-col items-center">
+
+                        {/* Investigator Badge as Header */}
+                        <div className="w-full mb-4 flex justify-center mt-[-30px]">
+                            <InvestigatorBadge investigator={inv} size="sm" />
                         </div>
 
-                        <h2 className="text-xl font-bold text-[var(--color-mythos-parchment)] mb-1 font-heading tracking-wide">{inv.name}</h2>
-                        <p className="text-sm text-[var(--color-mythos-gold)] mb-4 uppercase tracking-widest text-xs">{inv.occupation}</p>
+                        {/* Occupation */}
+                        <p className="text-xs text-[#8f968f] mb-4 uppercase tracking-widest bg-[#152015] px-2 py-1 rounded">{inv.occupation}</p>
 
-                        <div className="flex flex-col gap-2 mt-4 mt-auto">
-                            <span className={`self-start text-xs px-2 py-1 rounded border-2 font-bold uppercase tracking-wider ${inv.derivedStats.sanity.current < 30
-                                ? 'border-[var(--color-mythos-blood)] text-[var(--color-mythos-blood)] bg-black/30'
-                                : 'border-[var(--color-mythos-accent)] text-[var(--color-mythos-parchment)] bg-[var(--color-mythos-green)]'
-                                }`}>
-                                {inv.derivedStats.sanity.current < 30 ? 'Insane' : 'Alive'}
-                            </span>
+                        <div className="flex flex-col gap-3 w-full mt-auto">
 
                             <div className="flex items-center justify-between gap-2 mt-2">
                                 <Link href={`/character/${inv.id}`} className="flex-1">
