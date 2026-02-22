@@ -9,11 +9,14 @@ import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
+import { CompanionCard } from "@/components/features/session/companion-card";
 import { useInvestigator } from "@/hooks/use-investigator";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import { MASTER_ITEMS_DB } from "@/lib/items-db";
+import { EquipmentItem } from "@/lib/types";
 
 export default function GMPage() {
     const [investigators, setInvestigators] = useState<any[]>([]);
@@ -32,6 +35,11 @@ export default function GMPage() {
     const [rollTargetValue, setRollTargetValue] = useState("");
     const [rollDiceCount, setRollDiceCount] = useState("1");
     const [rollDiceType, setRollDiceType] = useState("d100");
+
+    // Item Distribution
+    const [showItemModal, setShowItemModal] = useState(false);
+    const [showSheetModal, setShowSheetModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // State for the selected investigator (modal)
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -134,33 +142,37 @@ export default function GMPage() {
                         occupation: payload.new.occupation
                     };
 
-                    setInvestigators(prev => {
-                        const idx = prev.findIndex(c => c.id === payload.new.id);
-                        if (idx !== -1) {
-                            const newList = [...prev];
-                            newList[idx] = newData;
-                            return newList;
-                        }
-                        return prev;
-                    });
+                    setInvestigators(prev => prev.map(inv => inv.id === newData.id ? newData : inv));
 
-                    // Se o GM estiver focado nesse investigador, atualize a ficha do hook local:
-                    setInvestigator(prevInv => {
-                        if (prevInv && prevInv.id === payload.new.id) {
-                            return newData;
-                        }
-                        return prevInv;
-                    });
+                    // If viewing this investigator currently, update local state
+                    if (investigator && investigator.id === newData.id) {
+                        setInvestigator(newData);
+                    }
                 }
             )
             .subscribe((status) => {
-                console.log("Supabase GM Investigator Realtime Status:", status);
+                console.log("Supabase Investigators Realtime Status (GM):", status);
             });
 
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [user, selectedSessionId, isLoadingData]);
+    }, [user, isLoadingData, selectedSessionId, investigator]);
+
+    // Cleanup stale rolls (2 minutes = 120000ms)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveRolls(prev => {
+                const now = Date.now();
+                return prev.filter(roll => {
+                    const rollTime = new Date(roll.created_at).getTime();
+                    return (now - rollTime) < 120000;
+                });
+            });
+        }, 10000); // Check every 10 seconds
+
+        return () => clearInterval(interval);
+    }, []);
 
     const fetchSessions = async () => {
         try {
@@ -260,7 +272,7 @@ export default function GMPage() {
         }
     };
 
-    if (isLoading || !user || user.role !== 'KEEPER') return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Acessando Arquivos Confidenciais...</div>;
+    if (isLoading || !user || user.role !== 'KEEPER') return <LoadingScreen message="Acessando Arquivos Confidenciais..." />;
 
     const handleSelectInvestigator = (inv: Investigator) => {
         setInvestigator(inv); // Initialize the hook with the selected data
@@ -269,6 +281,41 @@ export default function GMPage() {
 
     const handleClose = () => {
         setSelectedId(null);
+    };
+
+    const handleSendItemToPlayer = async (item: EquipmentItem) => {
+        if (!investigator) return;
+        try {
+            const itemInstance: EquipmentItem = {
+                ...item,
+                id: `${item.id}_${Date.now()}`
+            };
+
+            const currentInventory = investigator.inventory || [];
+            const newInventory = [...currentInventory, itemInstance];
+
+            handleInfoChange('inventory', newInventory);
+
+            const { data: dbInv } = await supabase
+                .from('investigators')
+                .select('data')
+                .eq('id', investigator.id)
+                .single();
+
+            if (dbInv) {
+                const newData = { ...dbInv.data, inventory: newInventory };
+                await supabase
+                    .from('investigators')
+                    .update({ data: newData })
+                    .eq('id', investigator.id);
+
+                alert(`Item "${item.name}" enviado para ${investigator.name}!`);
+                setShowItemModal(false);
+            }
+        } catch (error) {
+            console.error("Erro ao enviar item:", error);
+            alert("Erro ao enviar o item.");
+        }
     };
 
     const handleSendRollRequest = async () => {
@@ -369,9 +416,29 @@ export default function GMPage() {
                 </div>
             </div>
 
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
-                {/* Full Width Grid Container */}
-                <div className="col-span-12 overflow-y-auto pr-2 pb-8">
+            <div
+                className="flex-1 overflow-hidden relative rounded-xl border border-[var(--color-mythos-wood)]/30 backdrop-blur-sm shadow-[inset_0_0_100px_rgba(0,0,0,0.9)]"
+                style={{
+                    backgroundImage: `
+                        radial-gradient(circle at center, rgba(30, 80, 50, 0.4) 0%, rgba(10, 20, 10, 0.95) 100%),
+                        var(--texture-noise)
+                    `,
+                    backgroundColor: '#111a11',
+                    backgroundBlendMode: 'normal, multiply'
+                }}
+            >
+                <div className="absolute inset-0 overflow-y-auto px-4 py-8 md:px-12 relative z-10 flex flex-col min-h-full">
+
+                    {/* GM Area (Head of Table Top) */}
+                    <div className="flex justify-center mb-16 pointer-events-none">
+                        <div className="bg-gradient-to-b from-black/80 to-transparent border-t-4 border-[var(--color-mythos-blood)] p-6 rounded-b-3xl flex flex-col items-center shadow-2xl relative">
+                            {/* Subtle spotlight for GM */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-[var(--color-mythos-blood)]/5 rounded-full blur-[80px] mix-blend-screen" />
+                            <Monitor className="w-10 h-10 text-[var(--color-mythos-gold-dim)] mb-2" />
+                            <p className="font-heading uppercase tracking-widest text-[var(--color-mythos-gold-dim)] text-xs">Visão do Guardião</p>
+                            <p className="font-serif italic text-gray-500 text-[10px] mt-1">Conduza os infelizes à sua perdição.</p>
+                        </div>
+                    </div>
                     {isLoadingData ? (
                         <div className="text-center p-8 text-[var(--color-mythos-gold-dim)] animate-pulse">
                             Consultando Arquivos da Sessão...
@@ -388,208 +455,365 @@ export default function GMPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {investigators.map((inv) => (
-                                <Card
-                                    key={inv.id}
-                                    onClick={() => handleSelectInvestigator(inv)}
-                                    className={`cursor-pointer border-[var(--color-mythos-gold-dim)]/40 p-4 relative overflow-hidden group transition-all duration-300
-                                    ${selectedId === inv.id
-                                            ? 'bg-[var(--color-mythos-green)]/30 border-[var(--color-mythos-gold)] ring-1 ring-[var(--color-mythos-gold)]'
-                                            : 'bg-[#120a0a] hover:border-[var(--color-mythos-blood)]/50 hover:bg-[var(--color-mythos-green)]/10'
-                                        }
-                            `}
-                                >
-                                    {/* Status Stripe */}
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${inv.derivedStats.hp.current < 5 ? 'bg-[var(--color-mythos-blood)] animate-pulse' :
-                                        inv.derivedStats.sanity.current < 30 ? 'bg-orange-600' : 'bg-[var(--color-mythos-gold-dim)]'
-                                        }`} />
+                        <div className="flex w-full justify-between items-start pb-32">
+                            {/* Left Flank */}
+                            <div className="flex flex-col gap-16 pointer-events-auto pl-2 md:pl-12">
+                                {investigators.filter((_, i) => i % 2 === 0).map(inv => {
+                                    const companionObj = {
+                                        id: inv.id,
+                                        characterName: inv.name || 'Desconhecido',
+                                        occupation: inv.occupation || 'Sem Ocupação',
+                                        playerName: 'Jogador', // Em uma implementação futura, dar fetch do profiles.username
+                                        isCurrentUser: false,
+                                        avatar: inv.avatar || null,
+                                        portrait: inv.portrait || inv.personalData?.portrait || null,
+                                        hp: inv.derivedStats?.hp || { current: 0, max: 0 },
+                                        sanity: inv.derivedStats?.sanity || { current: 0, max: 0 },
+                                        mp: inv.derivedStats?.magicPoints || { current: 0, max: 0 },
+                                        inventory: inv.inventory || []
+                                    };
 
-                                    <div className="pl-4 flex flex-col gap-4">
-                                        {/* Header */}
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h3 className="text-xl font-bold text-[var(--color-mythos-parchment)] font-heading">{inv.name}</h3>
-                                                <p className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider">{inv.occupation}</p>
+                                    return (
+                                        <div key={inv.id} className="relative group perspective-1000 rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-left shadow-2xl">
+                                            {/* Ferramentas do Guardião Hover */}
+                                            <div className="absolute -top-12 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowItemModal(true); }}
+                                                    className="h-8 bg-green-900 hover:bg-green-800 text-green-100 border border-green-700 font-serif text-xs shadow-lg"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" /> Dar Item
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowRollModal(true); }}
+                                                    className="h-8 bg-[#2a1a10] hover:bg-black/80 text-[var(--color-mythos-gold)] border border-[var(--color-mythos-gold-dim)] font-serif text-xs shadow-lg"
+                                                >
+                                                    Pedir Teste
+                                                </Button>
                                             </div>
-                                            {selectedId === inv.id && <Eye className="w-4 h-4 text-[var(--color-mythos-gold)]" />}
+                                            <CompanionCard companion={companionObj} />
                                         </div>
+                                    );
+                                })}
+                            </div>
 
-                                        {/* Vitals Grid - Compact for list view */}
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {/* HP */}
-                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                                <div className="flex items-center gap-1 text-[var(--color-mythos-blood)] mb-1">
-                                                    <Heart className="w-3 h-3 fill-current" />
-                                                    <span className="text-[0.6rem] font-bold uppercase">HP</span>
-                                                </div>
-                                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
-                                                    {inv.derivedStats.hp.current} <span className="text-[var(--color-mythos-gold-dim)] text-[0.6rem]">/ {inv.derivedStats.hp.max}</span>
-                                                </span>
-                                            </div>
+                            {/* Center Table Atmosphere */}
+                            <div className="hidden lg:flex flex-col items-center justify-center pointer-events-none relative w-full px-8">
+                                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[var(--color-mythos-gold)]/10 rounded-full blur-[100px] mix-blend-screen" />
+                            </div>
 
-                                            {/* Sanity */}
-                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                                <div className="flex items-center gap-1 text-blue-400 mb-1">
-                                                    <Brain className="w-3 h-3" />
-                                                    <span className="text-[0.6rem] font-bold uppercase">SAN</span>
-                                                </div>
-                                                <span className={`text-sm font-bold ${inv.derivedStats.sanity.current < 30 ? 'text-orange-500' : 'text-[var(--color-mythos-parchment)]'}`}>
-                                                    {inv.derivedStats.sanity.current}
-                                                </span>
-                                            </div>
+                            {/* Right Flank */}
+                            <div className="flex flex-col gap-16 pointer-events-auto items-end pr-2 md:pr-12">
+                                {investigators.filter((_, i) => i % 2 !== 0).map(inv => {
+                                    const companionObj = {
+                                        id: inv.id,
+                                        characterName: inv.name || 'Desconhecido',
+                                        occupation: inv.occupation || 'Sem Ocupação',
+                                        playerName: 'Jogador',
+                                        isCurrentUser: false,
+                                        avatar: inv.avatar || null,
+                                        portrait: inv.portrait || inv.personalData?.portrait || null,
+                                        hp: inv.derivedStats?.hp || { current: 0, max: 0 },
+                                        sanity: inv.derivedStats?.sanity || { current: 0, max: 0 },
+                                        mp: inv.derivedStats?.magicPoints || { current: 0, max: 0 },
+                                        inventory: inv.inventory || []
+                                    };
 
-                                            {/* Magic Points */}
-                                            <div className="bg-black/40 p-1 rounded border border-[var(--color-mythos-gold-dim)]/20 flex flex-col items-center">
-                                                <div className="flex items-center gap-1 text-purple-400 mb-1">
-                                                    <Zap className="w-3 h-3 fill-current" />
-                                                    <span className="text-[0.6rem] font-bold uppercase">MP</span>
-                                                </div>
-                                                <span className="text-sm font-bold text-[var(--color-mythos-parchment)]">
-                                                    {inv.derivedStats.magicPoints.current}
-                                                </span>
+                                    return (
+                                        <div key={inv.id} className="relative group perspective-1000 -rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-right shadow-2xl">
+                                            {/* Ferramentas do Guardião Hover */}
+                                            <div className="absolute -top-12 left-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowItemModal(true); }}
+                                                    className="h-8 bg-green-900 hover:bg-green-800 text-green-100 border border-green-700 font-serif text-xs shadow-lg"
+                                                >
+                                                    <Plus className="w-3 h-3 mr-1" /> Dar Item
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowRollModal(true); }}
+                                                    className="h-8 bg-[#2a1a10] hover:bg-black/80 text-[var(--color-mythos-gold)] border border-[var(--color-mythos-gold-dim)] font-serif text-xs shadow-lg"
+                                                >
+                                                    Pedir Teste
+                                                </Button>
                                             </div>
+                                            <CompanionCard companion={companionObj} />
                                         </div>
-                                    </div>
-                                </Card>
-                            ))}
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
+            </div>
 
-                {/* Modal: Sheet Display */}
-                {selectedId && investigator && (
-                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 lg:p-8 animate-in fade-in duration-300">
-                        <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden border border-[var(--color-mythos-gold-dim)]/50 rounded-lg bg-[#0a0707] relative flex flex-col shadow-[0_0_50px_rgba(184,134,11,0.15)] animate-in zoom-in-95 duration-300">
-                            {/* Top bar for GM actions on this investigator */}
-                            <div className="absolute top-2 right-4 z-[60] flex items-center gap-2 bg-black/50 p-1 rounded-md backdrop-blur-md">
-                                {selectedSessionId !== 'ALL' && (
-                                    <Button
-                                        size="sm"
-                                        variant="mythos"
-                                        onClick={() => setShowRollModal(true)}
-                                        className="h-8 shadow-[0_0_10px_rgba(184,134,11,0.2)]"
-                                    >
-                                        Solicitar Teste
+            {/* Modals for Roll Request and Character Sheet overlaying everything */}
+            {selectedId && investigator && (
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 sm:p-6 backdrop-blur-md animate-in fade-in">
+                    <div className="w-full max-w-7xl max-h-[95vh] flex flex-col xl:flex-row gap-6">
+
+                        {showRollModal ? (
+                            <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full xl:w-[400px] shrink-0 p-6 flex flex-col shadow-2xl overflow-y-auto">
+                                <div className="flex justify-between items-center mb-6">
+                                    <div>
+                                        <h3 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Solicitar Teste</h3>
+                                        <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator.name}</p>
+                                    </div>
+                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowRollModal(false)}>
+                                        <X className="w-5 h-5" />
                                     </Button>
-                                )}
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-900/20 bg-black/50" onClick={handleClose}>
-                                    <X className="w-5 h-5" />
-                                </Button>
-                            </div>
+                                </div>
 
-                            {/* Roll Request Quick Modal overlay */}
-                            {showRollModal && (
-                                <div className="absolute inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-                                    <div className="bg-[#120a0a] border-2 border-[var(--color-mythos-gold)] p-6 rounded max-w-sm w-full space-y-4">
-                                        <h3 className="text-xl font-heading text-[var(--color-mythos-blood)] uppercase tracking-widest border-b border-[var(--color-mythos-gold-dim)]/30 pb-2">Exigir Rolagem</h3>
-                                        <p className="text-sm text-[var(--color-mythos-parchment)]/70 italic mb-4">
-                                            Força o jogador <strong>{investigator.name}</strong> a fazer um teste na tela dele.
-                                        </p>
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo de Teste (Ex: Sanidade, Lutar)</label>
+                                        <input
+                                            type="text"
+                                            value={rollSkillName}
+                                            onChange={e => setRollSkillName(e.target.value)}
+                                            className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-[family-name:--font-typewriter] text-lg focus:outline-none focus:border-[var(--color-mythos-gold)]"
+                                            placeholder="Digite aqui..."
+                                        />
+                                    </div>
 
-                                        <div className="space-y-4 font-serif">
-                                            <div>
-                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Nome do Teste (Ex: Encontrar)</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
-                                                    value={rollSkillName}
-                                                    onChange={e => setRollSkillName(e.target.value)}
-                                                    placeholder="Sanidade, Força, Escutar..."
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Qtd. Dados</label>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
-                                                        value={rollDiceCount}
-                                                        onChange={e => setRollDiceCount(e.target.value)}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Tipo de Dado</label>
-                                                    <Select value={rollDiceType} onValueChange={setRollDiceType}>
-                                                        <SelectTrigger className="w-full bg-black/50 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] h-[42px]">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-[#1a1010] border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-parchment)]">
-                                                            <SelectItem value="d4">d4</SelectItem>
-                                                            <SelectItem value="d6">d6</SelectItem>
-                                                            <SelectItem value="d8">d8</SelectItem>
-                                                            <SelectItem value="d10">d10</SelectItem>
-                                                            <SelectItem value="d20">d20</SelectItem>
-                                                            <SelectItem value="d100">d100 (%)</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-[var(--color-mythos-gold)] uppercase block mb-1">Valor Alvo (Opcional)</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-parchment)] rounded"
-                                                    value={rollTargetValue}
-                                                    onChange={e => setRollTargetValue(e.target.value)}
-                                                    placeholder="Deixe em branco p/ dano"
-                                                />
-                                            </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Valor Alvo do Investigador</label>
+                                        <input
+                                            type="number"
+                                            value={rollTargetValue}
+                                            onChange={e => setRollTargetValue(e.target.value)}
+                                            className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-mono text-xl focus:outline-none focus:border-[var(--color-mythos-gold)]"
+                                            placeholder="Ex: 50"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Qtd. Dados</label>
+                                            <input
+                                                type="number"
+                                                value={rollDiceCount}
+                                                onChange={e => setRollDiceCount(e.target.value)}
+                                                className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-2 text-center text-[var(--color-mythos-gold)] font-mono"
+                                                min="1"
+                                            />
                                         </div>
-
-                                        <div className="flex justify-end gap-2 pt-4">
-                                            <Button variant="ghost" onClick={() => setShowRollModal(false)} className="text-gray-400">Cancelar</Button>
-                                            <Button variant="mythos" onClick={handleSendRollRequest}>Enviar Exigência</Button>
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo (Faces)</label>
+                                            <Select value={rollDiceType} onValueChange={setRollDiceType}>
+                                                <SelectTrigger className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] font-mono h-[42px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-[#120a0a] border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)] font-mono">
+                                                    <SelectItem value="d100">d100</SelectItem>
+                                                    <SelectItem value="d20">d20</SelectItem>
+                                                    <SelectItem value="d10">d10</SelectItem>
+                                                    <SelectItem value="d8">d8</SelectItem>
+                                                    <SelectItem value="d6">d6</SelectItem>
+                                                    <SelectItem value="d4">d4</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
-                                </div>
-                            )}
 
-                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold)] scrollbar-track-black/20">
-                                <CharacterSheetDisplay
-                                    investigator={investigator}
-                                    onAttributeChange={handleAttributeChange}
-                                    onInfoChange={handleInfoChange}
-                                    onSkillChange={handleSkillChange}
-                                    onClose={handleClose}
-                                    isDialog={true}
-                                    isReadOnly={true}
-                                />
+                                    <Button
+                                        onClick={handleSendRollRequest}
+                                        className="w-full py-6 mt-4 bg-[#2a1a10] hover:bg-[var(--color-mythos-gold)] hover:text-black border border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-lg transition-colors group"
+                                    >
+                                        <Zap className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                                        FORÇAR TESTE
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full max-w-[400px] shrink-0 p-6 flex flex-col shadow-2xl relative">
+                                <div className="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h3 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Ações do Guardião</h3>
+                                        <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator.name}</p>
+                                    </div>
+                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={handleClose}>
+                                        <X className="w-5 h-5" />
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-4 flex-1">
+                                    <Button
+                                        onClick={() => setShowRollModal(true)}
+                                        className="w-full py-4 bg-black hover:bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)]/30 hover:border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-xs transition-colors"
+                                    >
+                                        Painel de Testes Rápidos
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowItemModal(true)}
+                                        className="w-full py-4 bg-green-950/20 hover:bg-green-900 border border-green-900/30 hover:border-green-700 text-green-600 hover:text-green-300 font-serif uppercase tracking-widest text-xs transition-colors"
+                                    >
+                                        Enviar Carta Físico / Item
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowSheetModal(true)}
+                                        className="w-full py-4 bg-blue-950/20 hover:bg-blue-900 border border-blue-900/30 hover:border-blue-700 text-blue-600 hover:text-blue-300 font-serif uppercase tracking-widest text-xs transition-colors"
+                                    >
+                                        Ver Ficha Completa
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Character Sheet Modal Overlaying everything in this modal context */}
+            {showSheetModal && (
+                <div className="absolute inset-0 z-[60] bg-black/95 flex flex-col p-4 sm:p-8 backdrop-blur-md animate-in fade-in">
+                    <div className="w-full max-w-7xl mx-auto flex flex-col h-full bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded-md shadow-2xl relative overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-[var(--color-mythos-gold-dim)]/30 bg-black/50 shrink-0">
+                            <div>
+                                <h3 className="text-2xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest drop-shadow-md">Ficha do Investigador</h3>
+                                <p className="text-sm text-[var(--color-mythos-gold-dim)] font-serif mt-1">Acessando {investigator.name}</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowSheetModal(false)}>
+                                <X className="w-6 h-6" />
+                            </Button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold)] scrollbar-track-black/20 p-6 bg-[#0a0808]">
+                            <CharacterSheetDisplay
+                                investigator={investigator}
+                                onAttributeChange={handleAttributeChange}
+                                onInfoChange={handleInfoChange}
+                                onSkillChange={handleSkillChange}
+                                onClose={() => setShowSheetModal(false)}
+                                isDialog={true}
+                                isReadOnly={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Item Distribution Modal Overlaying everything in this modal context */}
+            {showItemModal && (
+                <div className="absolute inset-0 z-[60] bg-black/95 flex flex-col p-4 sm:p-8 backdrop-blur-md animate-in fade-in">
+                    <div className="w-full max-w-7xl mx-auto flex flex-col h-full bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded-md shadow-2xl relative overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-[var(--color-mythos-gold-dim)]/30 bg-black/50 shrink-0">
+                            <div>
+                                <h3 className="text-2xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest drop-shadow-md">Catálogo de Itens</h3>
+                                <p className="text-sm text-[var(--color-mythos-gold-dim)] font-serif mt-1">Enviar para {investigator.name}</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowItemModal(false)}>
+                                <X className="w-6 h-6" />
+                            </Button>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="p-4 bg-black/80 border-b border-[var(--color-mythos-gold-dim)]/30 shrink-0">
+                            <input
+                                type="text"
+                                placeholder="Buscar item por nome ou tipo..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-[#1a1815] border border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-serif focus:outline-none focus:border-[var(--color-mythos-gold)] placeholder:text-[var(--color-mythos-gold-dim)]/50"
+                            />
+                        </div>
+
+                        {/* Catalog Grid */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-[url('/paper-texture.png')] bg-cover" style={{ backgroundBlendMode: 'multiply', backgroundColor: 'rgba(20, 20, 20, 0.95)' }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {MASTER_ITEMS_DB.filter(item =>
+                                    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    item.description.toLowerCase().includes(searchQuery.toLowerCase())
+                                ).map(item => (
+                                    <div
+                                        key={item.id}
+                                        className="bg-[#1a1815] text-[var(--color-mythos-parchment)] border border-[var(--color-mythos-gold-dim)]/30 rounded-md p-4 shadow-xl relative cursor-pointer hover:border-[var(--color-mythos-gold)] hover:-translate-y-1 transition-all flex flex-col gap-4 group"
+                                        onClick={() => handleSendItemToPlayer(item)}
+                                    >
+                                        {/* Head: Title & Thumbnail */}
+                                        <div className="flex gap-4">
+                                            <div className="w-20 h-20 shrink-0 bg-black/60 border border-[var(--color-mythos-gold)]/20 rounded-md overflow-hidden relative shadow-inner">
+                                                {item.imageUrl ? (
+                                                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover sepia-[0.3]" />
+                                                ) : (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-mythos-gold-dim)]/50">
+                                                        <span className="text-[10px] uppercase font-serif">Sem Foto</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 flex flex-col justify-start">
+                                                <h4 className="font-heading font-medium uppercase text-base leading-tight text-[var(--color-mythos-gold)]">{item.name}</h4>
+                                                <span className="text-[10px] uppercase tracking-widest text-[var(--color-mythos-gold-dim)]/70">{item.type}</span>
+                                                {item.stats && (
+                                                    <div className="mt-2 self-start bg-red-900/30 px-2 py-1 border-l-2 border-[var(--color-mythos-blood)] font-mono text-[10px] font-bold text-[var(--color-mythos-gold)] uppercase tracking-wide">
+                                                        {item.stats}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Body: Description */}
+                                        <div className="pt-3 border-t border-[var(--color-mythos-gold-dim)]/10 flex-1 flex flex-col justify-between">
+                                            <p className="font-serif text-xs leading-relaxed text-[var(--color-mythos-parchment)]/80">
+                                                {item.description}
+                                            </p>
+                                        </div>
+
+                                        {/* Enviar hover overlay */}
+                                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[var(--color-mythos-gold)] z-20 rounded-md backdrop-blur-sm">
+                                            <Heart className="w-10 h-10 mb-3 animate-pulse text-[var(--color-mythos-blood)] drop-shadow-[0_0_15px_rgba(150,0,0,0.8)]" />
+                                            <span className="font-bold font-serif uppercase tracking-widest text-base drop-shadow-md">Entregar Item</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
-                )}
-            </div>
-
-            {/* Live Rolls Log (Bottom Bar) */}
+                </div>
+            )}
+            {/* Live Rolls Sidebar Log (Right Panel) */}
             {selectedSessionId !== 'ALL' && activeRolls.length > 0 && (
-                <div className="mt-4 border-t border-[var(--color-mythos-gold-dim)]/30 pt-4 shrink-0">
-                    <h3 className="text-[var(--color-mythos-gold)] font-bold text-sm uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <Monitor className="w-4 h-4" /> Registro de Testes da Sessão
-                    </h3>
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold-dim)]">
-                        {activeRolls.map(roll => {
+                <div className="fixed top-24 right-4 bottom-4 w-72 pointer-events-none z-[60] flex flex-col justify-end pb-8">
+                    <div className="pointer-events-auto flex flex-col gap-3">
+                        {activeRolls.map((roll, index) => {
                             const inv = investigators.find(i => i.id === roll.investigator_id);
+                            const rollTime = new Date(roll.created_at).getTime();
+                            const ageInSeconds = Math.floor((Date.now() - rollTime) / 1000);
+                            const ageWarning = ageInSeconds > 90 ? 'opacity-50 blur-[1px] hover:blur-none hover:opacity-100 transition-all' : '';
+
                             return (
-                                <div key={roll.id} className="min-w-[200px] bg-black/40 border border-[var(--color-mythos-gold-dim)]/30 p-2 rounded flex flex-col justify-between shrink-0">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-xs font-bold text-[var(--color-mythos-parchment)] truncate max-w-[120px]">{inv?.name || 'Desconhecido'}</span>
-                                        <span className={`text-[10px] uppercase font-bold px-1 rounded ${roll.status === 'PENDING' ? 'bg-yellow-900/50 text-yellow-500' : 'bg-green-900/50 text-green-400'}`}>
-                                            {roll.status === 'PENDING' ? 'Rolando...' : 'Feito'}
+                                <div key={roll.id} className={`bg-[#e8e6df] text-black border border-gray-400 p-3 rounded-sm shadow-xl relative animate-in slide-in-from-right duration-300 ${ageWarning} bg-[url('/paper-texture.png')] bg-cover`} style={{ backgroundBlendMode: 'multiply' }}>
+                                    {/* Retrato miniatura estilo clip */}
+                                    <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full border border-black overflow-hidden bg-black shadow-md z-10">
+                                        {inv?.portrait || inv?.personalData?.portrait ? (
+                                            <img src={inv.portrait || inv.personalData?.portrait} className="w-full h-full object-cover sepia-[0.3]" alt={inv?.name} />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-500 flex justify-center items-center text-white text-[8px] font-bold font-serif overflow-hidden leading-tight">Mug</div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex justify-between items-start ml-5 mb-2">
+                                        <span className="text-xs font-[family-name:--font-typewriter] font-bold truncate max-w-[120px] uppercase text-black">{inv?.name || 'Desconhecido'}</span>
+                                        <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 border border-black shadow-sm ${roll.status === 'PENDING' ? 'bg-yellow-200 text-black' : 'bg-gray-800 text-white'}`}>
+                                            {roll.status === 'PENDING' ? 'Em Andamento' : 'Realizado'}
                                         </span>
                                     </div>
-                                    <div className="mt-1 flex justify-between items-end">
+                                    <div className="mt-1 flex justify-between items-end border-t border-black/20 pt-2">
                                         <div className="flex flex-col">
-                                            <span className="text-xs text-[var(--color-mythos-gold-dim)]">{roll.skill_name} <span className="opacity-50 font-mono">({roll.dice_count || 1}{roll.dice_type || 'd100'})</span> {roll.target_value != null && <span className="opacity-50">(Alvo: {roll.target_value})</span>}</span>
+                                            <span className="text-xs font-serif font-bold text-black uppercase leading-tight">{roll.skill_name}</span>
+                                            <span className="opacity-70 font-mono text-[10px]">({roll.dice_count || 1}{roll.dice_type || 'd100'}) {roll.target_value != null && <span>Alvo: {roll.target_value}</span>}</span>
                                         </div>
-                                        {roll.status === 'ROLLED' && (
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-lg font-bold text-[var(--color-mythos-parchment)] leading-none">{roll.result_roll}</span>
+                                        {roll.status === 'ROLLED' ? (
+                                            <div className="flex flex-col items-end pl-2">
+                                                <span className={`text-2xl font-bold font-[family-name:--font-typewriter] leading-none ${roll.result_type?.includes('FAIL') ? 'text-red-800' : 'text-green-800'}`}>{roll.result_roll}</span>
                                                 {roll.result_type && (
-                                                    <span className={`text-[10px] font-bold ${getSuccessColor(roll.result_type)}`}>{roll.result_type}</span>
+                                                    <span className={`text-[8px] tracking-widest uppercase font-bold ${roll.result_type?.includes('FAIL') ? 'text-red-700' : 'text-green-700'}`}>{roll.result_type}</span>
                                                 )}
                                             </div>
+                                        ) : (
+                                            <Zap className="w-5 h-5 text-yellow-600 animate-pulse ml-2" />
                                         )}
                                     </div>
                                 </div>

@@ -24,6 +24,18 @@ export interface Weapon {
     malfunction: number;
 }
 
+export type EquipmentCategory = 'Arma' | 'Arma de Fogo' | 'Arma Branca' | 'Tomo Arcano' | 'Tomo do Mito' | 'Artefato' | 'Utilidade' | 'Ferramenta' | 'Equipamento Méd.' | 'Chave/Documento' | 'Chave' | 'Evidência' | 'Material Místico';
+
+export interface EquipmentItem {
+    id: string;
+    name: string;
+    description: string;
+    type: EquipmentCategory;
+    imageUrl?: string;
+    quantity?: number;
+    stats?: string; // Optional raw string for mechanically impactful stats (e.g., "+1d4 de dano mágico")
+}
+
 export interface Investigator {
     id: string;
     name: string;
@@ -61,7 +73,9 @@ export interface Investigator {
     encounters: string; // Encontros com Entidades Estranhas
 
     // Inventory & Cash
-    gear: string[]; // Equipamento & Pertences (Texto livre ou lista de strings)
+    gear: string[]; // Equipamento & Pertences textuais legados
+    inventory?: EquipmentItem[]; // Nova mochila em cartas de itens
+
     // Dinheiro & Recursos
     spendingLevel: number;
     cash: number;

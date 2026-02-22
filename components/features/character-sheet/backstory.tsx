@@ -52,7 +52,7 @@ export default function CharacterSheetBackstory({ investigator, onChange, isRead
                     <div className="mt-8 border-2 border-[var(--color-mythos-gold-dim)] p-4 bg-[var(--color-mythos-black)]/30">
                         <Label className="font-heading text-lg text-[var(--color-mythos-gold)] uppercase block text-center mb-4 border-b border-[var(--color-mythos-gold-dim)]">Inventário & Equipamento</Label>
                         <textarea
-                            value={investigator.gear.join('\n')}
+                            value={(investigator.gear || []).join('\n')}
                             onChange={(e) => {
                                 // Simple multiline to array conversion
                                 onChange("gear" as any, e.target.value.split('\n') as any)
@@ -70,7 +70,7 @@ export default function CharacterSheetBackstory({ investigator, onChange, isRead
                                 <Label className="text-xs font-bold uppercase block text-[var(--color-mythos-gold-dim)]">Nível de Gastos</Label>
                                 <input
                                     type="number"
-                                    value={investigator.spendingLevel}
+                                    value={investigator.spendingLevel || ""}
                                     onChange={(e) => onChange("spendingLevel" as any, e.target.value)}
                                     readOnly={isReadOnly}
                                     className="vintage-input w-full"
@@ -80,7 +80,7 @@ export default function CharacterSheetBackstory({ investigator, onChange, isRead
                                 <Label className="text-xs font-bold uppercase block text-[var(--color-mythos-gold-dim)]">Dinheiro</Label>
                                 <input
                                     type="number"
-                                    value={investigator.cash}
+                                    value={investigator.cash || ""}
                                     onChange={(e) => onChange("cash" as any, e.target.value)}
                                     readOnly={isReadOnly}
                                     className="vintage-input w-full"
@@ -89,7 +89,7 @@ export default function CharacterSheetBackstory({ investigator, onChange, isRead
                             <div className="col-span-2">
                                 <Label className="text-xs font-bold uppercase block text-[var(--color-mythos-gold-dim)]">Patrimônio</Label>
                                 <input
-                                    value={investigator.assets}
+                                    value={investigator.assets || ""}
                                     onChange={(e) => onChange("assets" as any, e.target.value)}
                                     readOnly={isReadOnly}
                                     className="vintage-input w-full"

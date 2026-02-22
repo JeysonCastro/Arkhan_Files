@@ -8,6 +8,7 @@ import CharacterSheetDisplay from "@/components/features/character-sheet/charact
 import { useInvestigator } from "@/hooks/use-investigator";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 // Actually, I realized I didn't export INITIAL_INVESTIGATOR from hook. 
 // I should probably define it locally or export it.
@@ -172,7 +173,7 @@ export default function CharacterSheetPage() {
         }
     };
 
-    if (isLoading || !investigator.id) return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Carregando Arquivos...</div>;
+    if (isLoading || !investigator.id) return <LoadingScreen message="Reunindo Papéis do Arquivo..." />;
 
     return (
         <CharacterSheetDisplay

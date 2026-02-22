@@ -38,37 +38,39 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
 
             <div className="max-w-5xl mx-auto space-y-4 relative z-10">
                 {/* Toolbar */}
-                <div className="flex justify-between items-center mb-2 print:hidden sticky top-0 z-50 bg-[var(--color-mythos-paper)]/95 p-2 border-b border-[var(--color-mythos-gold)]/30 backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
+                <div className="flex justify-between items-center mb-2 print:hidden sticky top-0 z-50 bg-[var(--color-mythos-paper)]/95 p-2 sm:px-4 border-b border-[var(--color-mythos-gold)]/30 backdrop-blur-sm gap-2">
+                    <div className="flex items-center min-w-[40px]">
                         {onClose && (
-                            <Button variant="ghost" className="gap-2 text-[var(--color-mythos-blood)] hover:text-red-500 hover:bg-transparent" onClick={onClose}>
-                                <ArrowLeft className="w-4 h-4" /> {isDialog ? 'Fechar' : 'Voltar ao Painel'}
+                            <Button variant="ghost" className="gap-1 sm:gap-2 text-[var(--color-mythos-blood)] hover:text-red-500 hover:bg-transparent px-2" onClick={onClose}>
+                                <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">{isDialog ? 'Fechar' : 'Voltar ao Painel'}</span>
                             </Button>
                         )}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 sm:gap-2 flex-1 justify-center">
                         <Button
                             variant={activeTab === 'front' ? "mythos" : "secondary"}
                             onClick={() => setActiveTab('front')}
-                            className="w-24 md:w-32 text-xs md:text-sm"
+                            className="w-20 sm:w-24 md:w-32 text-xs md:text-sm px-1 sm:px-4 shadow-sm"
                         >
                             Frente
                         </Button>
                         <Button
                             variant={activeTab === 'back' ? "mythos" : "secondary"}
                             onClick={() => setActiveTab('back')}
-                            className="w-24 md:w-32 text-xs md:text-sm"
+                            className="w-20 sm:w-24 md:w-32 text-xs md:text-sm px-1 sm:px-4 shadow-sm"
                         >
                             Verso
                         </Button>
                     </div>
 
-                    {onSave && (
-                        <Button onClick={onSave} variant="mythos" className="gap-2 shadow-md">
-                            <Save className="w-4 h-4" /> <span className="hidden md:inline">Salvar</span>
-                        </Button>
-                    )}
+                    <div className="flex items-center justify-end min-w-[40px]">
+                        {onSave && (
+                            <Button onClick={onSave} variant="mythos" className="gap-2 shadow-md px-2 sm:px-4">
+                                <Save className="w-4 h-4" /> <span className="hidden md:inline">Salvar</span>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Sheet Content Card */}

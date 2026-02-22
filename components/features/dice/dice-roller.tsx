@@ -16,6 +16,7 @@ export function DiceRoller() {
     const [isOpen, setIsOpen] = useState(false);
     const [history, setHistory] = useState<RollResult[]>([]);
     const [isRolling, setIsRolling] = useState(false);
+    const [diceCount, setDiceCount] = useState(1);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Auto-scroll history container
@@ -102,28 +103,59 @@ export function DiceRoller() {
                         </Button>
                     </div>
 
+                    {/* Settings / Quantity */}
+                    <div className="px-4 pt-3 flex items-center justify-between border-b border-[var(--color-mythos-gold-dim)]/20 pb-2">
+                        <span className="text-xs font-bold text-[var(--color-mythos-gold-dim)] tracking-widest uppercase">Quantidade de Dados:</span>
+                        <div className="flex items-center">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-r-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
+                                onClick={() => setDiceCount(Math.max(1, diceCount - 1))}
+                            >
+                                -
+                            </Button>
+                            <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                value={diceCount}
+                                onChange={(e) => setDiceCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="h-6 w-12 text-center text-xs font-bold bg-black text-[var(--color-mythos-parchment)] border-y border-[var(--color-mythos-gold-dim)]/50 focus:outline-none"
+                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-6 w-6 rounded-l-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
+                                onClick={() => setDiceCount(Math.min(20, diceCount + 1))}
+                            >
+                                +
+                            </Button>
+                        </div>
+                    </div>
+
                     {/* Quick Rolls */}
                     <div className="p-4 grid grid-cols-4 gap-2 bg-[var(--color-mythos-black)]">
-                        <Button variant="outline" size="sm" onClick={() => rollDice(100)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d100
+                        <Button variant="outline" size="sm" onClick={() => rollDice(100, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d100` : 'd100'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(10)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d10
+                        <Button variant="outline" size="sm" onClick={() => rollDice(10, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d10` : 'd10'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(8)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d8
+                        <Button variant="outline" size="sm" onClick={() => rollDice(8, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d8` : 'd8'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(6)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d6
+                        <Button variant="outline" size="sm" onClick={() => rollDice(6, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d6` : 'd6'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(4)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d4
+                        <Button variant="outline" size="sm" onClick={() => rollDice(4, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d4` : 'd4'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(3)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black">
-                            d3
+                        <Button variant="outline" size="sm" onClick={() => rollDice(3, diceCount)} disabled={isRolling} className="border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d3` : 'd3'}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => rollDice(6, 2)} disabled={isRolling} className="col-span-2 border-[var(--color-mythos-blood)]/50 text-[var(--color-mythos-blood)] hover:bg-[var(--color-mythos-blood)] hover:text-black">
-                            2d6
+                        <Button variant="outline" size="sm" onClick={() => rollDice(20, diceCount)} disabled={isRolling} className="col-span-2 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)] hover:text-black font-bold">
+                            {diceCount > 1 ? `${diceCount}d20` : 'd20'}
                         </Button>
                     </div>
 

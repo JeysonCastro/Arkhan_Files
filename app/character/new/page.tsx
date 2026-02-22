@@ -26,12 +26,14 @@ export default function NewCharacterPage() {
                 .insert([{
                     name: characterData.name,
                     occupation: characterData.occupation,
-                    user_id: user.id, // Correct column is user_id
+                    player_id: user.id, // Fixed: using player_id instead of user_id to match Supabase schema
                     data: { // Correct column for JSON is data
                         age: characterData.age,
                         gender: characterData.gender,
                         attributes: characterData.attributes,
                         avatar: characterData.avatar,
+                        skills: characterData.skills,
+                        inventory: characterData.inventory,
                         // Adaptação para a estrutura de sanidade antiga do projeto (se existir)
                         derivedStats: {
                             sanity: { current: characterData.attributes.SANITY, max: characterData.attributes.MAX_SANITY },

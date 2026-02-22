@@ -1,38 +1,48 @@
-import React, { useState } from 'react';
-import {
-    BaseSkin1, BaseSkin2, BaseSkin3,
-    EyesNormal, EyesTired, EyesDetermined, EyesFeminine,
-    MouthNeutral, MouthSmirk, MouthWorried,
-    HairSlickedBack, HairBob, HairMessy, HairBun,
-    ClothesSuit, ClothesFlapperDress, ClothesTurtleneck, ClothesLabCoat,
-    GlassesRound
-} from './avatar-svgs';
+import React, { useState, useRef } from 'react';
+import { Upload } from "lucide-react";
 
 export type AvatarConfig = {
-    skinType: 'sharp' | 'round' | 'angular';
-    skinColor: string;
-    eyeType: 'normal' | 'tired' | 'determined' | 'feminine';
-    eyeColor: string;
-    mouthType: 'neutral' | 'smirk' | 'worried';
-    hairType: 'slicked' | 'bob' | 'none' | 'messy' | 'bun';
-    hairColor: string;
-    clothesType: 'suit' | 'flapper' | 'turtleneck' | 'labcoat';
-    clothesColor: string;
-    hasGlasses: boolean;
+    portraitUrl: string;
 };
 
 export const defaultAvatarConfig: AvatarConfig = {
-    skinType: 'sharp',
-    skinColor: '#fcd4c9',
-    eyeType: 'normal',
-    eyeColor: '#4b3621',
-    mouthType: 'neutral',
-    hairType: 'slicked',
-    hairColor: '#222222',
-    clothesType: 'suit',
-    clothesColor: '#1c2331',
-    hasGlasses: false,
+    portraitUrl: '/assets/portraits/inv_male_1.png',
 };
+
+// Database of all available portraits mapped by category
+const PORTRAIT_DB = {
+    'Investigador': [
+        { url: '/assets/portraits/inv_male_1.png', label: 'Investigador 1' },
+        { url: '/assets/portraits/inv_male_2.png', label: 'Investigador 2' },
+        { url: '/assets/portraits/inv_fem_1.png', label: 'Investigadora 1' },
+        { url: '/assets/portraits/inv_fem_2.png', label: 'Investigadora 2' },
+    ],
+    'Antiquário': [
+        { url: '/assets/portraits/anti_male_1.png', label: 'Antiquário 1' },
+        { url: '/assets/portraits/anti_male_2.png', label: 'Antiquário 2' },
+        { url: '/assets/portraits/anti_fem_1.png', label: 'Antiquária 1' },
+        { url: '/assets/portraits/anti_fem_2.png', label: 'Antiquária 2' },
+    ],
+    'Professor': [
+        { url: '/assets/portraits/prof_male_1.png', label: 'Professor 1' },
+        { url: '/assets/portraits/prof_male_2.png', label: 'Professor 2' },
+        { url: '/assets/portraits/prof_fem_1.png', label: 'Professora 1' },
+        { url: '/assets/portraits/prof_fem_2.png', label: 'Professora 2' },
+    ],
+    'Médico': [
+        { url: '/assets/portraits/doc_male_1.png', label: 'Médico 1' },
+        { url: '/assets/portraits/doc_male_2.png', label: 'Médico 2' },
+        { url: '/assets/portraits/doc_fem_1.png', label: 'Médica 1' },
+        { url: '/assets/portraits/doc_fem_2.png', label: 'Médica 2' },
+    ],
+    'Jornalista': [
+        { url: '/assets/portraits/jour_male_1.png', label: 'Jornalista 1' },
+        // Outros jornalistas entrarão aqui quando gerados
+    ]
+};
+
+// Flattened list for "All" view
+const ALL_PORTRAITS = Object.values(PORTRAIT_DB).flat();
 
 interface AvatarCreatorProps {
     config: AvatarConfig;
@@ -41,249 +51,138 @@ interface AvatarCreatorProps {
 }
 
 export function AvatarDisplay({ config }: { config: AvatarConfig }) {
-    // Graceful fallback for older configs that might be missing new properties
-    const skin = config.skinType || 'sharp';
-    const eye = config.eyeType || 'normal';
-    const mouth = config.mouthType || 'neutral';
-    const hair = config.hairType || 'slicked';
-    const cloth = config.clothesType || 'suit';
+    // Graceful fallback to default image if config doesn't have a portraitUrl (e.g. old saves)
+    const url = config?.portraitUrl || defaultAvatarConfig.portraitUrl;
 
     return (
-        <div className="relative w-full aspect-[4/5] bg-neutral-800 rounded-sm overflow-hidden 
-                    shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] border-4 border-black">
-            {/* Background Vintage Texture */}
-            <div className="absolute inset-0 bg-[#8da583]" />
+        <div className="relative w-full aspect-[4/5] bg-[#1a0f14] rounded-sm overflow-hidden 
+                    shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] border-[6px] border-[#e8dcc6]">
 
-            {/* Sunburst pattern retro comic */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_transparent_40%,_black_100%)] pointer-events-none z-0" />
+            {/* The actual Portrait Image */}
+            <img
+                src={url}
+                alt="Character Portrait"
+                className="w-full h-full object-cover filter contrast-110 saturate-[0.85] sepia-[0.2]"
+            />
 
-            {/* 1. Base Body/Skin */}
-            <div className="absolute inset-0 z-10 transition-colors duration-300">
-                {skin === 'sharp' && <BaseSkin1 fill={config.skinColor} className="w-full h-full object-cover" />}
-                {skin === 'round' && <BaseSkin2 fill={config.skinColor} className="w-full h-full object-cover" />}
-                {skin === 'angular' && <BaseSkin3 fill={config.skinColor} className="w-full h-full object-cover" />}
-            </div>
+            {/* Vintage Photograph Overlays */}
+            {/* Paper texture overlay */}
+            <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-multiply"
+                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }} />
 
-            {/* 2. Clothes (Under Hair) */}
-            <div className="absolute inset-0 z-20 transition-colors duration-300">
-                {cloth === 'suit' && <ClothesSuit fill={config.clothesColor} className="w-full h-full object-cover" />}
-                {cloth === 'flapper' && <ClothesFlapperDress fill={config.clothesColor} className="w-full h-full object-cover" />}
-                {cloth === 'turtleneck' && <ClothesTurtleneck fill={config.clothesColor} className="w-full h-full object-cover" />}
-                {cloth === 'labcoat' && <ClothesLabCoat fill={config.clothesColor} className="w-full h-full object-cover" />}
-            </div>
+            {/* Edge Vignetting & Grime */}
+            <div className="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.9)] border border-[rgba(255,255,255,0.05)] pointer-events-none" />
 
-            {/* 3. Eyes */}
-            <div className="absolute inset-0 z-30 transition-colors duration-300">
-                {eye === 'normal' && <EyesNormal fill={config.eyeColor} className="w-full h-full object-cover" />}
-                {eye === 'tired' && <EyesTired fill={config.eyeColor} className="w-full h-full object-cover" />}
-                {eye === 'determined' && <EyesDetermined fill={config.eyeColor} className="w-full h-full object-cover" />}
-                {eye === 'feminine' && <EyesFeminine fill={config.eyeColor} className="w-full h-full object-cover" />}
-            </div>
+            {/* Scratch Effects */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-screen bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+')]" />
 
-            {/* 4. Mouth */}
-            <div className="absolute inset-0 z-30">
-                {mouth === 'neutral' && <MouthNeutral className="w-full h-full object-cover" />}
-                {mouth === 'smirk' && <MouthSmirk className="w-full h-full object-cover" />}
-                {mouth === 'worried' && <MouthWorried className="w-full h-full object-cover" />}
-            </div>
-
-            {/* 5. Hair */}
-            <div className="absolute inset-0 z-40 transition-colors duration-300">
-                {hair === 'slicked' && <HairSlickedBack fill={config.hairColor} className="w-full h-full object-cover" />}
-                {hair === 'bob' && <HairBob fill={config.hairColor} className="w-full h-full object-cover" />}
-                {hair === 'messy' && <HairMessy fill={config.hairColor} className="w-full h-full object-cover" />}
-                {hair === 'bun' && <HairBun fill={config.hairColor} className="w-full h-full object-cover" />}
-            </div>
-
-            {/* 6. Accessories */}
-            {config.hasGlasses && (
-                <div className="absolute inset-0 z-50">
-                    <GlassesRound className="w-full h-full object-cover" />
-                </div>
-            )}
-
-            {/* Top Vintage Vignette */}
-            <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none z-50" />
+            {/* Tint */}
+            <div className="absolute inset-0 bg-[#3a1d10] opacity-[0.10] mix-blend-color pointer-events-none" />
         </div>
     );
 }
 
 export function AvatarCreator({ config, onChange, readonly = false }: AvatarCreatorProps) {
+    const [activeFilter, setActiveFilter] = useState<string>('Todos');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     if (readonly) {
         return <AvatarDisplay config={config} />;
     }
 
-    const handleChange = (key: keyof AvatarConfig, value: any) => {
-        if (onChange) {
-            onChange({ ...config, [key]: value });
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                onChange?.({ portraitUrl: base64String });
+            };
+            reader.readAsDataURL(file);
         }
     };
 
-    const skinColors = ['#fcd4c9', '#e0ac93', '#c68a6b', '#8d553b', '#5c331f', '#d7dcdd']; // Added pale
-    const hairColors = ['#111111', '#4b2e15', '#8f4f21', '#cfb05b', '#e2dfd9', '#6d1818', '#335577'];
-    const clothesColors = ['#1c2331', '#113322', '#551111', '#e8e8e8', '#aaaaaa', '#725e36', '#222222'];
+    const categories = ['Todos', ...Object.keys(PORTRAIT_DB)];
+
+    const displayPortraits = activeFilter === 'Todos'
+        ? ALL_PORTRAITS
+        : PORTRAIT_DB[activeFilter as keyof typeof PORTRAIT_DB] || [];
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0a0f0a]/80 p-6 rounded-lg border-2 border-[var(--color-mythos-green)] shadow-xl">
-            {/* Left: Preview */}
-            <div className="flex flex-col items-center justify-start space-y-4">
-                <h3 className="text-[var(--color-mythos-gold)] font-[family-name:--font-typewriter] font-bold text-xl uppercase tracking-widest text-center w-full border-b-2 border-dashed border-[var(--color-mythos-gold-dim)] pb-2">Identificação Visual</h3>
-                <div className="w-full max-w-[250px] rotate-[-1deg] hover:rotate-1 transition-transform">
-                    <div className="p-2 bg-white shadow-md">
-                        <AvatarDisplay config={config} />
-                        <div className="mt-2 text-center text-black font-[family-name:--font-typewriter] font-bold text-lg">Retrato Anexo</div>
+        <div className="flex flex-col md:flex-row h-[700px] bg-[#d3d8da] rounded-xl overflow-hidden border border-gray-400 shadow-2xl font-sans">
+
+            {/* Left Gallery Pane */}
+            <div className="w-full md:w-[60%] flex flex-col bg-[#e7ebed] border-r border-gray-300">
+
+                {/* Filters */}
+                <div className="p-4 border-b border-gray-300 bg-[#dbe1e4]">
+                    <h3 className="font-serif text-xl text-gray-800 mb-3">Galeria de Fichas (1947-1991)</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveFilter(cat)}
+                                className={`px-4 py-1 rounded-full text-sm border font-bold transition-all ${activeFilter === cat
+                                    ? 'bg-gray-800 text-white border-black shadow-inner'
+                                    : 'bg-white text-gray-600 border-gray-400 hover:bg-gray-200'
+                                    }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Portrait Grid */}
+                <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-400">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                        {/* Custom Upload Button */}
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="relative aspect-[4/5] overflow-hidden rounded-sm border-4 border-dashed border-gray-400 bg-gray-200 hover:bg-gray-300 hover:border-gray-500 transition-all flex flex-col items-center justify-center text-gray-500 group"
+                        >
+                            <Upload className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform text-gray-400 group-hover:text-gray-600" />
+                            <span className="text-xs font-bold uppercase">Sua Imagem</span>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                        </button>
+
+                        {/* Existing Portraits */}
+                        {displayPortraits.map((portrait, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => onChange?.({ portraitUrl: portrait.url })}
+                                className={`relative aspect-[4/5] overflow-hidden rounded-sm border-4 transition-all ${config.portraitUrl === portrait.url
+                                    ? 'border-[var(--color-mythos-green)] shadow-[0_0_15px_rgba(40,167,69,0.5)] scale-105 z-10'
+                                    : 'border-white hover:border-gray-400 hover:scale-105 hover:shadow-lg'
+                                    }`}
+                            >
+                                <img src={portrait.url} alt={portrait.label} className="w-full h-full object-cover filter grayscale-[0.2]" />
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* Right: Controls */}
-            <div className="space-y-6 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-[var(--color-mythos-green)] pr-4">
+            {/* Right Display Pane */}
+            <div className="w-full md:w-[40%] relative bg-[radial-gradient(circle_at_center,_#eaf1f4_0%,_#c2cdd1_100%)] flex items-center justify-center p-8 border-l border-white shadow-[-10px_0_20px_rgba(0,0,0,0.1)]">
+                <div className="w-full max-w-[320px] relative z-10 shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
+                    {/* Paper clip graphic simulation */}
+                    <div className="absolute -top-4 left-6 w-3 h-12 border-2 border-gray-400 rounded-full z-20 bg-gradient-to-b from-gray-300 to-gray-500 shadow-md rotate-[-15deg]" />
+                    <AvatarDisplay config={config} />
 
-                {/* Pele e Fisionomia */}
-                <div className="space-y-3 p-4 bg-black/40 rounded border border-[var(--color-mythos-green)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-mythos-green)]" />
-                    <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider font-[family-name:--font-typewriter]">Características Físicas</h4>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Formato do Rosto</label>
-                            <select
-                                value={config.skinType || 'sharp'}
-                                onChange={(e) => handleChange('skinType', e.target.value)}
-                                className="w-full bg-[#111] border-2 border-gray-800 text-gray-200 p-2 rounded focus:border-[var(--color-mythos-green)] outline-none transition-colors"
-                            >
-                                <option value="sharp">Clássico / Padrão</option>
-                                <option value="round">Arredondado</option>
-                                <option value="angular">Angular / Forte</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Tom de Pele</label>
-                            <div className="flex gap-2 flex-wrap items-center h-full">
-                                {skinColors.map(color => (
-                                    <button
-                                        key={`skin-${color}`}
-                                        onClick={() => handleChange('skinColor', color)}
-                                        className={`w-7 h-7 rounded-full border-2 ${config.skinColor === color ? 'border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'border-black opacity-60 hover:opacity-100'}`}
-                                        style={{ backgroundColor: color }}
-                                        title="Tom de Pele"
-                                        type="button"
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Olhar</label>
-                            <select
-                                value={config.eyeType || 'normal'}
-                                onChange={(e) => handleChange('eyeType', e.target.value)}
-                                className="w-full bg-[#111] border-2 border-gray-800 text-gray-200 p-2 rounded focus:border-[var(--color-mythos-green)] outline-none transition-colors"
-                            >
-                                <option value="normal">Normal / Atento</option>
-                                <option value="determined">Determinado / Focado</option>
-                                <option value="tired">Cansado / Olheiras</option>
-                                <option value="feminine">Feminino c/ Cílios</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Expressão</label>
-                            <select
-                                value={config.mouthType || 'neutral'}
-                                onChange={(e) => handleChange('mouthType', e.target.value)}
-                                className="w-full bg-[#111] border-2 border-gray-800 text-gray-200 p-2 rounded focus:border-[var(--color-mythos-green)] outline-none transition-colors"
-                            >
-                                <option value="neutral">Neutra (Séria)</option>
-                                <option value="smirk">Sorriso Cínico</option>
-                                <option value="worried">Preocupada</option>
-                            </select>
-                        </div>
+                    {/* Polaroid Text Area */}
+                    <div className="bg-[#e8dcc6] px-4 pt-1 pb-4 text-center border-x-[6px] border-b-[6px] border-[#e8dcc6]">
+                        <p className="font-[family-name:--font-handwriting] text-3xl text-gray-800 -rotate-2 opacity-80">
+                            ID: {Math.floor(Math.random() * 90000) + 10000}
+                        </p>
                     </div>
                 </div>
-
-                {/* Cabelo */}
-                <div className="space-y-3 p-4 bg-black/40 rounded border border-[var(--color-mythos-green)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-mythos-green)]" />
-                    <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider font-[family-name:--font-typewriter]">Cabelo</h4>
-
-                    <div className="space-y-1">
-                        <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={() => handleChange('hairType', 'none')} className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border-2 ${config.hairType === 'none' ? 'bg-gray-800 border-white text-white' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}>Raspado</button>
-                            <button type="button" onClick={() => handleChange('hairType', 'slicked')} className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border-2 ${config.hairType === 'slicked' ? 'bg-gray-800 border-white text-white' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}>Engomado</button>
-                            <button type="button" onClick={() => handleChange('hairType', 'messy')} className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border-2 ${config.hairType === 'messy' ? 'bg-gray-800 border-white text-white' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}>Desarrumado</button>
-                            <button type="button" onClick={() => handleChange('hairType', 'bun')} className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border-2 ${config.hairType === 'bun' ? 'bg-gray-800 border-white text-white' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}>Coque</button>
-                            <button type="button" onClick={() => handleChange('hairType', 'bob')} className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded border-2 ${config.hairType === 'bob' ? 'bg-gray-800 border-white text-white' : 'border-gray-800 text-gray-500 hover:border-gray-600'}`}>Bob (Curto)</button>
-                        </div>
-                    </div>
-
-                    {config.hairType !== 'none' && (
-                        <div className="space-y-1 mt-3">
-                            <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Cor Fios</label>
-                            <div className="flex gap-2 flex-wrap">
-                                {hairColors.map(color => (
-                                    <button
-                                        key={`hair-${color}`}
-                                        onClick={() => handleChange('hairColor', color)}
-                                        className={`w-6 h-6 rounded-full border-2 ${config.hairColor === color ? 'border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'border-black opacity-60 hover:opacity-100'}`}
-                                        style={{ backgroundColor: color }}
-                                        title="Cor do Cabelo"
-                                        type="button"
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Roupas e Acessórios */}
-                <div className="space-y-3 p-4 bg-black/40 rounded border border-[var(--color-mythos-green)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-mythos-green)]" />
-                    <h4 className="text-sm font-bold text-gray-300 uppercase tracking-wider font-[family-name:--font-typewriter]">Traje</h4>
-
-                    <div className="space-y-1">
-                        <select
-                            value={config.clothesType || 'suit'}
-                            onChange={(e) => handleChange('clothesType', e.target.value)}
-                            className="w-full bg-[#111] border-2 border-gray-800 text-gray-200 p-2 rounded focus:border-[var(--color-mythos-green)] outline-none transition-colors"
-                        >
-                            <option value="suit">Terno Clássico & Gravata</option>
-                            <option value="turtleneck">Gola Alta (Turtleneck)</option>
-                            <option value="labcoat">Jaleco Médico/Pesquisador</option>
-                            <option value="flapper">Vestido de Gala</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-1 mt-3">
-                        <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Cor Principal do Traje</label>
-                        <div className="flex gap-2 flex-wrap">
-                            {clothesColors.map(color => (
-                                <button
-                                    key={`cloth-${color}`}
-                                    onClick={() => handleChange('clothesColor', color)}
-                                    className={`w-8 h-8 rounded border-2 ${config.clothesColor === color ? 'border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'border-black opacity-60 hover:opacity-100'}`}
-                                    style={{ backgroundColor: color }}
-                                    title="Cor da Roupa"
-                                    type="button"
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="pt-4 border-t-2 border-dashed border-gray-800 mt-4">
-                        <label className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer group">
-                            <input
-                                type="checkbox"
-                                checked={config.hasGlasses}
-                                onChange={(e) => handleChange('hasGlasses', e.target.checked)}
-                                className="accent-[var(--color-mythos-green)] w-5 h-5 cursor-pointer"
-                            />
-                            <span className="font-bold uppercase tracking-wider group-hover:text-white transition-colors">Óculos Investigativos</span>
-                        </label>
-                    </div>
-                </div>
-
             </div>
         </div>
     );

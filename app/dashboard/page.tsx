@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Skull, Link as LinkIcon } from "lucide-react";
+import { Plus, Skull, Link as LinkIcon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { InvestigatorBadge } from "@/components/ui/investigator-badge";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function DashboardPage() {
     const { user, isLoading } = useAuth();
@@ -64,6 +65,24 @@ export default function DashboardPage() {
             console.error(err);
         } finally {
             setIsLoadingData(false);
+        }
+    };
+
+    const handleDeleteCharacter = async (id: string) => {
+        if (!window.confirm("Tem certeza que deseja recussitar os mortos e extinguir permanentemente este investigador? Isso não pode ser desfeito e o removerá da Mesa!")) return;
+
+        try {
+            const { error } = await supabase
+                .from('investigators')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setInvestigators(prev => prev.filter(inv => inv.id !== id));
+        } catch (err: any) {
+            console.error(err);
+            alert("Erro ao excluir investigar: " + err.message);
         }
     };
 
@@ -180,7 +199,7 @@ export default function DashboardPage() {
         }
     };
 
-    if (isLoading || !user || isLoadingData) return <div className="p-8 text-[var(--color-mythos-parchment)] animate-pulse">Consultando Arquivos...</div>;
+    if (isLoading || !user || isLoadingData) return <LoadingScreen message="Consultando os Arquivos..." />;
 
     return (
         <div className="space-y-8">
@@ -271,6 +290,16 @@ export default function DashboardPage() {
                                         </Button>
                                     </Link>
                                 )}
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="px-3 border-red-900/50 text-red-500 hover:bg-red-900/30 hover:text-red-400 hover:border-red-700 bg-transparent flex-shrink-0"
+                                    onClick={() => handleDeleteCharacter(inv.id)}
+                                    title="Excluir Investigador"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
                             </div>
                         </div>
                     </div>

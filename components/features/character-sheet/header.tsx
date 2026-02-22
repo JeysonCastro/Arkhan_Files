@@ -59,14 +59,14 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                 <h1 className="text-3xl font-black uppercase tracking-widest w-full text-center text-[var(--color-mythos-gold)]">Investigador dos Anos 1920</h1>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+            <div className="flex flex-col-reverse md:flex-row gap-8 items-start">
                 {/* Personal Data Column - Classic Style */}
-                <div className="md:col-span-9 grid grid-cols-2 gap-x-8 gap-y-2 text-sm font-serif">
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm font-serif w-full">
 
                     <div className="col-span-2 md:col-span-1 flex items-end gap-2">
                         <Label className="whitespace-nowrap font-bold text-[var(--color-mythos-gold)] uppercase text-xs">Nome</Label>
                         <Input
-                            value={investigator.name}
+                            value={investigator.name || ""}
                             onChange={(e) => onChange("name", e.target.value)}
                             readOnly={isReadOnly}
                             className="vintage-input w-full text-lg font-bold text-[var(--color-mythos-parchment)]"
@@ -105,8 +105,8 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                             <Label className="whitespace-nowrap font-bold text-[var(--color-mythos-gold)] uppercase text-xs">Idade</Label>
                             <Input
                                 type="number"
-                                value={investigator.age}
-                                onChange={(e) => onChange("age", parseInt(e.target.value))}
+                                value={investigator.age || ""}
+                                onChange={(e) => onChange("age", parseInt(e.target.value) || 0)}
                                 readOnly={isReadOnly}
                                 className="vintage-input w-full text-center text-[var(--color-mythos-parchment)]"
                             />
@@ -114,7 +114,7 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                         <div className="flex items-end gap-2 flex-1">
                             <Label className="whitespace-nowrap font-bold text-[var(--color-mythos-gold)] uppercase text-xs">Sexo</Label>
                             <Input
-                                value={investigator.sex}
+                                value={investigator.sex || ""}
                                 onChange={(e) => onChange("sex", e.target.value)}
                                 readOnly={isReadOnly}
                                 className="vintage-input w-full text-center text-[var(--color-mythos-parchment)]"
@@ -125,7 +125,7 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                     <div className="col-span-2 flex items-end gap-2">
                         <Label className="whitespace-nowrap font-bold text-[var(--color-mythos-gold)] uppercase text-xs">Residência</Label>
                         <Input
-                            value={investigator.residence}
+                            value={investigator.residence || ""}
                             onChange={(e) => onChange("residence", e.target.value)}
                             readOnly={isReadOnly}
                             className="vintage-input w-full text-[var(--color-mythos-parchment)]"
@@ -135,7 +135,7 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                     <div className="col-span-2 flex items-end gap-2">
                         <Label className="whitespace-nowrap font-bold text-[var(--color-mythos-gold)] uppercase text-xs">Local Nasc.</Label>
                         <Input
-                            value={investigator.birthplace}
+                            value={investigator.birthplace || ""}
                             onChange={(e) => onChange("birthplace", e.target.value)}
                             readOnly={isReadOnly}
                             className="vintage-input w-full text-[var(--color-mythos-parchment)]"
@@ -145,7 +145,7 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
 
                 {/* Portrait / Logo Area */}
                 <div
-                    className={`md:col-span-3 flex flex-col items-center justify-center p-2 relative group overflow-visible ${!isReadOnly ? 'cursor-pointer' : ''}`}
+                    className={`w-full md:w-[240px] flex flex-col items-center justify-center p-2 pt-6 relative group overflow-visible ${!isReadOnly ? 'cursor-pointer' : ''}`}
                     onClick={() => !isReadOnly && fileInputRef.current?.click()}
                     title={!isReadOnly ? "Clique na foto para alterar" : "Retrato do Investigador"}
                 >
@@ -157,10 +157,10 @@ export default function CharacterSheetHeader({ investigator, onChange, isReadOnl
                         className="hidden"
                     />
 
-                    <InvestigatorBadge investigator={investigator} size="lg" className="scale-90 md:scale-100" />
+                    <InvestigatorBadge investigator={investigator} size="lg" className="scale-90 md:scale-100" hideBars={true} />
 
                     {!isReadOnly && (
-                        <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 rounded-full w-32 h-32 md:w-32 md:h-32">
+                        <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-30 w-32 h-32 md:w-40 md:h-40 rotate-[1deg] mt-1 pointer-events-none">
                             <span className="text-[var(--color-mythos-gold)] text-xs font-bold uppercase tracking-widest flex flex-col items-center gap-1 text-center font-[family-name:--font-typewriter]">
                                 <Camera className="w-6 h-6" /> Alterar Foto
                             </span>
