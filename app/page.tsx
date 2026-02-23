@@ -3,101 +3,168 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import CultSummoningScene from "@/components/features/home/cult-scene";
 import { useAuth } from "@/context/auth-context";
+import Image from "next/image";
 
 export default function Home() {
   const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [lightning, setLightning] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    const triggerLightning = () => {
+      if (Math.random() > 0.4) {
+        setLightning(true);
+        setTimeout(() => setLightning(false), 100 + Math.random() * 200);
+      }
+      setTimeout(triggerLightning, 3000 + Math.random() * 8000);
+    };
+
+    const timeout = setTimeout(triggerLightning, 3000);
+    return () => clearTimeout(timeout);
   }, []);
 
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen relative overflow-hidden font-serif flex flex-col items-center justify-center">
+    <main className="min-h-screen relative overflow-hidden font-serif flex flex-col items-center justify-between bg-black">
 
-      {/* Background Scene */}
-      <CultSummoningScene />
+      {/* Lightning Flash Overlay - Affects the entire screen */}
+      <div className={`absolute inset-0 bg-white mix-blend-overlay transition-opacity duration-75 pointer-events-none z-[8] ${lightning ? 'opacity-25' : 'opacity-0'}`} />
 
-      {/* Content Overlay */}
-      <div className="relative z-30 text-center max-w-4xl px-4 space-y-12 animate-in fade-in duration-1000 zoom-in-95">
+      {/* 
+        ==================================================
+        BACKGROUND LAYER (KEN BURNS EFFECT)
+        ==================================================
+      */}
+      <div className="absolute inset-0 z-0 overflow-hidden bg-black">
+        <Image
+          src="/bg-landing-1.jpg"
+          alt="Eldritch Summoning"
+          fill
+          priority
+          className={`object-cover object-center animate-ken-burns transition-all duration-75 ${lightning ? 'brightness-[0.9] contrast-[1.1] sepia-[0.1]' : 'brightness-[0.7] contrast-[1.15] sepia-[0.1]'}`}
+        />
+        {/* Color Gradient Overlay for Atmosphere */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a111a] via-transparent to-[#0a111a]/80 mix-blend-multiply pointer-events-none" />
+      </div>
 
-        <div className="space-y-4">
-          <h1 className="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-t from-[var(--color-mythos-gold)] to-[#fff8e7] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] font-heading tracking-widest uppercase">
-            Arkham
-            <span className="block text-4xl md:text-6xl mt-2 tracking-[1em] text-[var(--color-mythos-blood)] opacity-90">Archives</span>
-          </h1>
+      {/* 
+        ==================================================
+        FOREGROUND FOG LAYERS (CSS ANIMATED)
+        ==================================================
+      */}
+      {/* Fog Layer 1 - Fast, low opacity */}
+      <div
+        className="absolute bottom-0 left-0 h-[60vh] w-[200vw] z-[5] animate-fog pointer-events-none opacity-20 mix-blend-screen"
+        style={{
+          backgroundImage: 'url("/fog-texture.png")',
+          backgroundSize: '50% 100%',
+          backgroundRepeat: 'repeat-x',
+          WebkitMaskImage: 'linear-gradient(to top, transparent, black 15%, black 85%, transparent)'
+        }}
+      />
+      {/* Fog Layer 2 - Slow, slightly varied scale */}
+      <div
+        className="absolute bottom-[-10%] left-0 h-[80vh] w-[200vw] z-[6] animate-fog-slow pointer-events-none opacity-30 mix-blend-screen scale-y-110"
+        style={{
+          backgroundImage: 'url("/fog-texture.png")',
+          backgroundSize: '50% 100%',
+          backgroundRepeat: 'repeat-x',
+          animationDelay: '-15s',
+          WebkitMaskImage: 'linear-gradient(to top, transparent, black 15%, black 85%, transparent)'
+        }}
+      />
 
-          <div className="w-64 h-1 bg-gradient-to-r from-transparent via-[var(--color-mythos-gold)] to-transparent mx-auto opacity-50" />
+      {/* 
+        ==================================================
+        UI LAYER - HEADER (TOP)
+        ==================================================
+      */}
+      <header className="relative z-30 w-full pt-16 md:pt-24 px-4 flex flex-col items-center animate-in fade-in slide-in-from-top-12 duration-1000">
+        <h1 className="text-5xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#eaddc5] to-[var(--color-mythos-gold-dim)] drop-shadow-[0_10px_10px_rgba(0,0,0,1)] font-heading tracking-widest uppercase text-center">
+          Arkham
+          <span className="block text-3xl md:text-5xl tracking-[0.5em] text-[var(--color-mythos-blood)] opacity-90 mt-2">Archives</span>
+        </h1>
+
+        <div className="mt-8 relative max-w-xl mx-auto px-6 py-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm border border-[var(--color-mythos-gold-dim)]/20 rounded-lg skew-x-12" />
+          <p className="relative text-sm md:text-base text-[var(--color-mythos-parchment)]/80 italic text-center font-serif leading-relaxed drop-shadow-md">
+            "Não foi por acaso que as visões fugazes de antigas geometrias proibidas atraíram homens de imaginação febril para sua ruína."
+          </p>
         </div>
+      </header>
 
-        <p className="text-xl md:text-3xl text-gray-300 italic max-w-2xl mx-auto leading-relaxed drop-shadow-md">
-          "The oldest and strongest emotion of mankind is fear, and the oldest and strongest kind of fear is fear of the unknown."
-        </p>
 
-        <div className="pt-12 flex flex-col items-center gap-6">
-          {user ? (
-            <div className="space-y-4 flex flex-col items-center animate-in slide-in-from-bottom-4 duration-700">
-              <p className="text-[var(--color-mythos-parchment)] italic text-lg shadow-black drop-shadow-md">
-                Bem-vindo de volta, <span className="text-[var(--color-mythos-gold)] font-bold">{user.username}</span>.
-              </p>
+      {/* 
+        ==================================================
+        UI LAYER - ACTIONS (BOTTOM)
+        ==================================================
+      */}
+      <div className="relative z-30 w-full pb-16 px-4 flex flex-col items-center animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-500 fill-mode-both">
 
-              <div className="flex flex-col md:flex-row gap-4">
-                {user.role === 'KEEPER' && (
-                  <Button
-                    variant="mythos"
-                    size="lg"
-                    className="w-64 text-lg shadow-[0_0_20px_rgba(184,134,11,0.2)] hover:shadow-[0_0_30px_rgba(184,134,11,0.4)] transition-all bg-black/60 backdrop-blur-sm"
-                    onClick={() => window.location.href = '/gm'}
-                  >
-                    Área do Guardião
-                  </Button>
-                )}
+        {user ? (
+          <div className="space-y-6 flex flex-col items-center w-full max-w-md p-6 bg-black/60 backdrop-blur-md border border-[var(--color-mythos-gold-dim)]/50 rounded-xl shadow-[0_0_50px_rgba(20,30,20,0.8)]">
+            <p className="text-[var(--color-mythos-parchment)] italic text-lg shadow-black drop-shadow-md text-center">
+              Investigarório de <span className="text-[var(--color-mythos-gold)] font-bold">{user.username}</span>.
+            </p>
+
+            <div className="flex flex-col w-full gap-3">
+              {user.role === 'KEEPER' && (
                 <Button
-                  variant={user.role === 'KEEPER' ? "outline" : "mythos"}
-                  size="lg"
-                  className="w-64 text-lg bg-black/60 backdrop-blur-sm border-2 border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)]"
-                  onClick={() => window.location.href = '/dashboard'}
+                  variant="mythos"
+                  className="w-full text-lg shadow-[0_0_15px_rgba(184,134,11,0.2)] hover:shadow-[0_0_25px_rgba(184,134,11,0.5)] transition-all h-14"
+                  onClick={() => window.location.href = '/gm'}
                 >
-                  {user.role === 'KEEPER' ? "Ver como Jogador" : "Acessar Fichas"}
+                  Área do Guardião
                 </Button>
-              </div>
+              )}
+              <Button
+                variant={user.role === 'KEEPER' ? "outline" : "mythos"}
+                className={`w-full text-lg h-14 ${user.role === 'KEEPER' ? 'bg-black/50 border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)]' : 'shadow-[0_0_15px_rgba(184,134,11,0.2)] hover:shadow-[0_0_25px_rgba(184,134,11,0.5)] transition-all'}`}
+                onClick={() => window.location.href = '/dashboard'}
+              >
+                {user.role === 'KEEPER' ? "Ver Fichas de Jogador" : "Adentrar as Trevas"}
+              </Button>
+            </div>
 
+            <div className="w-full pt-4 border-t border-white/10 flex justify-center">
               <Button
                 variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-transparent mt-4"
+                size="sm"
+                className="text-red-900 hover:text-red-500 hover:bg-transparent font-serif tracking-widest text-xs uppercase"
                 onClick={async () => {
                   await logout();
-                  // Force a hard reload to clear any stale client state if needed
                   window.location.href = '/';
                 }}
               >
-                Sair
+                Abandonar a Busca (Sair)
               </Button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-6">
-              <Link href="/login">
+          </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-mythos-blood)] via-[var(--color-mythos-gold)] to-[var(--color-mythos-dark-green)] rounded-lg blur opacity-25 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
+              <Link href="/login" className="relative">
                 <Button
-                  variant="outline"
-                  size="lg"
-                  className="px-16 py-8 text-2xl border-2 border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] bg-black/50 hover:bg-[var(--color-mythos-gold)] hover:text-black transition-all duration-500 tracking-widest uppercase backdrop-blur-sm shadow-[0_0_20px_rgba(198,168,105,0.3)] hover:shadow-[0_0_40px_rgba(198,168,105,0.6)]"
+                  variant="ghost"
+                  className="px-16 py-8 text-xl border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] bg-black/80 hover:bg-[var(--color-mythos-black)] hover:border-[var(--color-mythos-gold)] transition-all duration-500 tracking-[0.3em] uppercase backdrop-blur-md"
                 >
-                  Enter the Madness
+                  Iniciar Investigação
                 </Button>
               </Link>
             </div>
-          )}
+          </div>
+        )}
+
+        <div className="mt-8 text-center text-white/5 font-serif text-[10px] tracking-[0.2em] mix-blend-overlay">
+          O CHAMADO DE CTHULHU É UMA MARCA REGISTRADA DA CHAOSIUM INC.
         </div>
       </div>
 
-      {/* Footer / Copyright */}
-      <div className="absolute bottom-4 z-30 text-center w-full text-white/10 text-xs tracking-widest mix-blend-overlay">
-        <p>Call of Cthulhu is a trademark of Chaosium Inc.</p>
-      </div>
     </main>
   );
 }

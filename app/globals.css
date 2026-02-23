@@ -145,3 +145,51 @@ h6 {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-mythos-gold-dim);
 }
+
+/* -----------------------------------------
+   [LANDING PAGE] ATMOSPHERIC ANIMATIONS 
+   ----------------------------------------- */
+
+/* KEN BURNS ESTÁTICO: Zoom infinito para aterrorizar sutilmente */
+@keyframes ken-burns {
+  0% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+.animate-ken-burns {
+  animation: ken-burns 40s ease-in-out infinite alternate;
+}
+
+/* FOG MOVEMENT: Neblina se movendo fluidamente em uma direção */
+@keyframes fog-flow {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes fog-flow-slow {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-fog {
+  animation: fog-flow 60s linear infinite;
+}
+
+.animate-fog-slow {
+  animation: fog-flow-slow 120s linear infinite;
+}
