@@ -20,13 +20,13 @@ export default function NewCharacterPage() {
 
         try {
             // Insere o personagem base no banco de dados (o schema atual)
-            // Lembre que atualmente a tabela investigators pede name e occupation e player_id
+            // Lembre que atualmente a tabela investigators pede name, occupation e user_id
             const { data, error } = await supabase
                 .from('investigators')
                 .insert([{
                     name: characterData.name,
                     occupation: characterData.occupation,
-                    player_id: user.id, // Fixed: using player_id instead of user_id to match Supabase schema
+                    user_id: user.id, // Reverted: using user_id to match Supabase schema defined in supabase_schema.sql
                     data: { // Correct column for JSON is data
                         age: characterData.age,
                         gender: characterData.gender,
@@ -45,8 +45,9 @@ export default function NewCharacterPage() {
                 .select();
 
             if (error) {
-                console.error("Supabase Error:", error);
-                alert("Erro ao salvar personagem");
+                console.error("Supabase Error stringified:", JSON.stringify(error, null, 2));
+                console.error("Supabase Error raw:", error);
+                alert(`Erro ao salvar personagem: ${error?.message || JSON.stringify(error)}`);
                 setIsSaving(false);
                 return;
             }
