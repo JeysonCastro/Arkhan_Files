@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AvatarCreator, AvatarConfig, defaultAvatarConfig } from '../avatar/avatar-creator';
 import { Attributes, DerivedStats, calculateDerivedStats, Occupations, Occupation, BaseSkills, getBaseSkillValues } from './coc-rules';
@@ -26,6 +26,34 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
     });
     const [derivedStats, setDerivedStats] = useState<DerivedStats>({ hp: 10, mp: 10, sanity: 50, build: 0, damageBonus: "None", mov: 8 });
 
+    type PoolDraftValue = { id: string; value: number };
+    const [pool3d6, setPool3d6] = useState<PoolDraftValue[]>([]);
+    const [pool2d6, setPool2d6] = useState<PoolDraftValue[]>([]);
+    const [attributeAssignments, setAttributeAssignments] = useState<Record<string, PoolDraftValue | null>>({
+        STR: null, CON: null, DEX: null, APP: null, POW: null,
+        SIZ: null, INT: null, EDU: null
+    });
+    const [luckRoll, setLuckRoll] = useState<number | null>(null);
+    const [hasRolled, setHasRolled] = useState(false);
+
+    useEffect(() => {
+        if (!hasRolled) return;
+        const newAttrs = {
+            STR: attributeAssignments.STR?.value || 0,
+            CON: attributeAssignments.CON?.value || 0,
+            SIZ: attributeAssignments.SIZ?.value || 0,
+            DEX: attributeAssignments.DEX?.value || 0,
+            APP: attributeAssignments.APP?.value || 0,
+            INT: attributeAssignments.INT?.value || 0,
+            POW: attributeAssignments.POW?.value || 0,
+            EDU: attributeAssignments.EDU?.value || 0,
+            LUCK: luckRoll || 0
+        };
+        setAttributes(newAttrs);
+        setDerivedStats(calculateDerivedStats(newAttrs, parseInt(age) || 25));
+    }, [attributeAssignments, luckRoll, age, hasRolled]);
+
+
     // Ocupação & Perícias
     const [selectedOccupationId, setSelectedOccupationId] = useState<string>('');
     const selectedOccupation = Occupations.find(o => o.id === selectedOccupationId);
@@ -51,20 +79,30 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
     const roll2d6plus6 = () => Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1 + 6;
 
     const handleRollAttributes = () => {
-        const newAttrs = {
-            STR: roll3d6() * 5,
-            CON: roll3d6() * 5,
-            SIZ: roll2d6plus6() * 5,
-            DEX: roll3d6() * 5,
-            APP: roll3d6() * 5,
-            INT: roll2d6plus6() * 5,
-            POW: roll3d6() * 5,
-            EDU: roll2d6plus6() * 5,
-            LUCK: roll3d6() * 5,
-        };
-        setAttributes(newAttrs);
-        setDerivedStats(calculateDerivedStats(newAttrs, parseInt(age) || 25));
+        const p3: PoolDraftValue[] = Array.from({ length: 5 }).map(() => ({ id: Math.random().toString(), value: roll3d6() * 5 }));
+        const p2: PoolDraftValue[] = Array.from({ length: 3 }).map(() => ({ id: Math.random().toString(), value: roll2d6plus6() * 5 }));
+        setPool3d6(p3);
+        setPool2d6(p2);
+        setAttributeAssignments({ STR: null, CON: null, DEX: null, APP: null, POW: null, SIZ: null, INT: null, EDU: null });
+        setLuckRoll(roll3d6() * 5);
+        setHasRolled(true);
     };
+
+    const handleAssignAttr = (attrType: string, poolType: '3d6' | '2d6', selectedId: string) => {
+        const pool = poolType === '3d6' ? pool3d6 : pool2d6;
+        const selectedObj = pool.find(p => p.id === selectedId) || null;
+
+        const newAssignments = { ...attributeAssignments };
+        if (selectedId) {
+            Object.keys(newAssignments).forEach(key => {
+                if (newAssignments[key]?.id === selectedId) newAssignments[key] = null;
+            });
+        }
+        newAssignments[attrType] = selectedObj;
+        setAttributeAssignments(newAssignments);
+    };
+
+    const isAllAssigned = hasRolled && Object.values(attributeAssignments).every(v => v !== null) && luckRoll !== null;
 
     const handleFinish = () => {
         const newCharacter = {
@@ -140,14 +178,6 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-[var(--color-mythos-gold-dim)] uppercase">Ocupação Principal</label>
-                                <input
-                                    className="vintage-input w-full"
-                                    value={occupation} onChange={e => setOccupation(e.target.value)}
-                                    placeholder="Médico, Jornalista, Detetive..."
-                                />
-                            </div>
                         </div>
                     )}
 
@@ -158,13 +188,91 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                                 <Button variant="mythos" onClick={handleRollAttributes} className="text-lg px-8 py-6">Rolar Dados de Atributos (3d6)</Button>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                {Object.entries(attributes).map(([key, val]) => (
-                                    <div key={key} className="bg-black/50 p-4 border border-[var(--color-mythos-wood)] text-center relative">
-                                        <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-[#0a0707] px-2 text-[var(--color-mythos-gold)] font-bold text-xs">{key}</span>
-                                        <div className="text-4xl font-serif text-[var(--color-mythos-parchment)] mt-2">{val}</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-4">
+                                    <h4 className="text-[var(--color-mythos-gold)] font-bold mb-1 uppercase tracking-wider text-sm">Atributos Principais (3d6)</h4>
+                                    <div className="flex flex-wrap gap-2 mb-4 p-2 bg-black/40 border border-gray-800 min-h-[46px]">
+                                        {pool3d6.filter(p => !Object.values(attributeAssignments).find(a => a?.id === p.id)).map((p) =>
+                                            <span key={p.id} className="bg-[#1a1414] border border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-parchment)] px-3 py-1 text-lg font-serif">
+                                                {p.value}
+                                            </span>
+                                        )}
+                                        {hasRolled && pool3d6.filter(p => !Object.values(attributeAssignments).find(a => a?.id === p.id)).length === 0 && <span className="text-gray-600 text-sm py-1 italic">Todos Alocados</span>}
+                                        {!hasRolled && <span className="text-gray-600 text-sm py-1 italic">Role os dados...</span>}
                                     </div>
-                                ))}
+
+                                    {['STR', 'CON', 'DEX', 'APP', 'POW'].map(attr => (
+                                        <div key={attr} className="flex items-center justify-between p-2 border-b border-gray-800 bg-black/50">
+                                            <span className="font-bold text-[var(--color-mythos-gold)] w-16">{attr}</span>
+                                            <select
+                                                className="bg-[#111] text-white border-b-2 border-[var(--color-mythos-gold-dim)] p-2 font-serif text-lg outline-none w-32 text-center"
+                                                value={attributeAssignments[attr]?.id || ""}
+                                                onChange={e => handleAssignAttr(attr, '3d6', e.target.value)}
+                                                disabled={!hasRolled}
+                                            >
+                                                <option value="">-- --</option>
+                                                {pool3d6.map(p => {
+                                                    const isAssigned = Object.values(attributeAssignments).find(a => a?.id === p.id);
+                                                    const isAssignedToMe = attributeAssignments[attr]?.id === p.id;
+                                                    if (isAssigned && !isAssignedToMe) return null;
+                                                    return <option key={p.id} value={p.id}>{p.value}</option>;
+                                                })}
+                                            </select>
+                                        </div>
+                                    ))}
+
+                                    <h4 className="text-[var(--color-mythos-gold)] font-bold mt-8 mb-1 uppercase tracking-wider text-sm">Atributos Secundários (2d6+6)</h4>
+                                    <div className="flex flex-wrap gap-2 mb-4 p-2 bg-black/40 border border-gray-800 min-h-[46px]">
+                                        {pool2d6.filter(p => !Object.values(attributeAssignments).find(a => a?.id === p.id)).map((p) =>
+                                            <span key={p.id} className="bg-[#1a1414] border border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-parchment)] px-3 py-1 text-lg font-serif">
+                                                {p.value}
+                                            </span>
+                                        )}
+                                        {hasRolled && pool2d6.filter(p => !Object.values(attributeAssignments).find(a => a?.id === p.id)).length === 0 && <span className="text-gray-600 text-sm py-1 italic">Todos Alocados</span>}
+                                        {!hasRolled && <span className="text-gray-600 text-sm py-1 italic">Role os dados...</span>}
+                                    </div>
+
+                                    {['SIZ', 'INT', 'EDU'].map(attr => (
+                                        <div key={attr} className="flex items-center justify-between p-2 border-b border-gray-800 bg-black/50">
+                                            <span className="font-bold text-[var(--color-mythos-gold)] w-16">{attr}</span>
+                                            <select
+                                                className="bg-[#111] text-white border-b-2 border-[var(--color-mythos-gold-dim)] p-2 font-serif text-lg outline-none w-32 text-center"
+                                                value={attributeAssignments[attr]?.id || ""}
+                                                onChange={e => handleAssignAttr(attr, '2d6', e.target.value)}
+                                                disabled={!hasRolled}
+                                            >
+                                                <option value="">-- --</option>
+                                                {pool2d6.map(p => {
+                                                    const isAssigned = Object.values(attributeAssignments).find(a => a?.id === p.id);
+                                                    const isAssignedToMe = attributeAssignments[attr]?.id === p.id;
+                                                    if (isAssigned && !isAssignedToMe) return null;
+                                                    return <option key={p.id} value={p.id}>{p.value}</option>;
+                                                })}
+                                            </select>
+                                        </div>
+                                    ))}
+
+                                    <div className="flex items-center justify-between p-4 border border-[var(--color-mythos-gold)]/50 bg-[var(--color-mythos-gold)]/5 mt-6">
+                                        <span className="font-bold text-[var(--color-mythos-gold)]">Sorte (LUCK)</span>
+                                        <span className="text-3xl font-serif text-white">{luckRoll !== null ? luckRoll : '--'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <h4 className="text-[var(--color-mythos-gold)] font-bold uppercase tracking-wider text-sm border-b border-gray-800 pb-2">Status do Personagem</h4>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {Object.entries(attributes).map(([key, val]) => {
+                                            if (key === 'LUCK') return null; // Luck handled outside
+                                            return (
+                                                <div key={key} className={`p-4 border text-center relative transition-colors ${val > 0 ? 'bg-black/50 border-[var(--color-mythos-wood)]' : 'bg-[#050505] border-gray-800/50'}`}>
+                                                    <span className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-[#0a0707] px-2 text-[var(--color-mythos-gold)] font-bold text-xs">{key}</span>
+                                                    <div className={`text-4xl font-serif mt-2 ${val > 0 ? 'text-[var(--color-mythos-parchment)]' : 'text-gray-700'}`}>{val > 0 ? val : '--'}</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8 pt-6 border-t border-[var(--color-mythos-gold-dim)]/30">
                                 <div className="bg-[#111] p-3 border border-gray-800 text-center">
@@ -210,8 +318,27 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                                     </select>
 
                                     {selectedOccupation && (
-                                        <div className="p-4 bg-black/60 border border-[var(--color-mythos-gold-dim)] text-gray-300 mt-4 text-sm leading-relaxed italic">
-                                            "{selectedOccupation.description}"
+                                        <div className="p-4 bg-black/60 border border-[var(--color-mythos-gold-dim)] text-gray-300 mt-4 text-sm leading-relaxed flex flex-col gap-3">
+                                            <p className="italic text-gray-400">"{selectedOccupation.description}"</p>
+                                            <div className="mt-2 pt-3 border-t border-gray-800 space-y-2 text-[13px] font-sans">
+                                                <div className="grid grid-cols-[140px_1fr] gap-2 items-start">
+                                                    <span className="font-bold text-[var(--color-mythos-gold)] text-right">Fórmula de Pontos:</span>
+                                                    <span className="text-white">{selectedOccupation.pointsFormulaText}</span>
+
+                                                    <span className="font-bold text-[var(--color-mythos-gold)] text-right">Nível de Crédito:</span>
+                                                    <span className="text-gray-300">{selectedOccupation.minCreditRating} a {selectedOccupation.maxCreditRating}</span>
+
+                                                    <span className="font-bold text-[var(--color-mythos-gold)] text-right mt-1">Perícias Focais<br /><span className="text-[10px] text-gray-500 font-normal leading-none">(O que ganha)</span>:</span>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {selectedOccupation.classSkills.map(s => (
+                                                            <span key={s} className="bg-[var(--color-mythos-gold)]/10 border border-[var(--color-mythos-gold)]/30 px-1.5 py-0.5 rounded text-xs text-[var(--color-mythos-parchment)]">{s}</span>
+                                                        ))}
+                                                    </div>
+
+                                                    <span className="font-bold text-red-500/80 text-right mt-1">Restrições<br /><span className="text-[10px] text-gray-500 font-normal leading-none">(O que perde)</span>:</span>
+                                                    <span className="text-gray-400 mt-1 italic leading-tight">Você ganha pontos focados apenas nas perícias acima. Seu limite financeiro é {selectedOccupation.maxCreditRating}.</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -309,25 +436,50 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {StandardWeapons.map(weapon => {
                                     const isSelected = selectedWeapons.includes(weapon.id);
+                                    const isUnarmed = weapon.id === 'unarmed';
+
+                                    // Check if user invested points in this weapon's skill
+                                    const investedPoints = (occPointsSpent[weapon.skill] || 0) + (persPointsSpent[weapon.skill] || 0);
+                                    const hasSkill = isUnarmed || investedPoints > 0;
+
                                     const toggle = () => {
-                                        if (weapon.id === 'unarmed') return; // Cannot unequip hands
+                                        if (isUnarmed) return; // Cannot unequip hands
+                                        if (!hasSkill) return; // Cannot equip if they don't have the skill
+
                                         if (isSelected) setSelectedWeapons(selectedWeapons.filter(id => id !== weapon.id));
                                         else setSelectedWeapons([...selectedWeapons, weapon.id]);
                                     };
+
                                     return (
-                                        <div key={weapon.id} onClick={toggle} className={`p-4 border-2 cursor-pointer transition-colors ${isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]/10' : 'border-gray-800 bg-[#111] hover:border-gray-600'}`}>
+                                        <div key={weapon.id} onClick={toggle} className={`relative p-4 border-2 transition-colors ${!hasSkill ? 'border-gray-900 bg-[#0a0a0a] opacity-60 cursor-not-allowed' : isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]/10 cursor-pointer' : 'border-gray-800 bg-[#111] hover:border-gray-600 cursor-pointer'}`}>
                                             <div className="flex justify-between items-start mb-2">
-                                                <h4 className={`font-bold uppercase tracking-wider ${isSelected ? 'text-white' : 'text-gray-400'}`}>{weapon.name}</h4>
-                                                <div className={`w-5 h-5 border-2 flex items-center justify-center ${isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]' : 'border-gray-600'}`}>
+                                                <h4 className={`font-bold uppercase tracking-wider ${isSelected ? 'text-white' : !hasSkill ? 'text-gray-600' : 'text-[var(--color-mythos-gold-dim)]'}`}>{weapon.name}</h4>
+                                                <div className={`w-5 h-5 border-2 flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]' : !hasSkill ? 'border-gray-800' : 'border-gray-600'}`}>
                                                     {isSelected && <div className="w-2 h-2 bg-black" />}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mt-2">
-                                                <div><span className="font-bold">Dano:</span> {weapon.damage}</div>
-                                                <div><span className="font-bold">Alcance:</span> {weapon.baseRange}</div>
-                                                <div><span className="font-bold">Perícia:</span> {weapon.skill}</div>
-                                                <div><span className="font-bold">Malfunction:</span> {weapon.malfunction}</div>
+                                            {weapon.imageUrl && (
+                                                <div className={`w-full h-28 relative mb-3 border border-gray-800 overflow-hidden ${isSelected ? 'opacity-100' : hasSkill ? 'opacity-70' : 'opacity-30'}`}>
+                                                    <img src={weapon.imageUrl} alt={weapon.name} className="w-full h-full object-cover mix-blend-screen" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                                                </div>
+                                            )}
+                                            {weapon.description && (
+                                                <p className="text-xs text-gray-500 italic mb-3 leading-tight border-b border-gray-800/50 pb-2">{weapon.description}</p>
+                                            )}
+                                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mt-2 relative z-10">
+                                                <div><span className="text-gray-600 block text-[10px] uppercase">Dano</span><span className="text-gray-300 font-serif text-sm">{weapon.damage}</span></div>
+                                                <div><span className="text-gray-600 block text-[10px] uppercase">Alcance Base</span><span className="text-gray-300">{weapon.baseRange}</span></div>
+                                                <div><span className="text-gray-600 block text-[10px] uppercase">Mun/Ataques</span><span className="text-gray-300">{weapon.bulletsInGun} / {weapon.usesPerRound}</span></div>
+                                                {!isUnarmed && (
+                                                    <div><span className={`${hasSkill ? 'text-[var(--color-mythos-gold-dim)]' : 'text-red-900/50'} block text-[10px] uppercase font-bold`}>Perícia Requerida</span><span className={`${hasSkill ? 'text-[var(--color-mythos-gold)]' : 'text-red-500/50'} font-bold`}>{weapon.skill}</span></div>
+                                                )}
                                             </div>
+                                            {!hasSkill && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] z-20">
+                                                    <span className="bg-black/90 text-red-500/80 text-xs font-bold uppercase tracking-widest px-3 py-1 border border-red-900/50 rotate-[-2deg]">Sem Proficiência</span>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -366,7 +518,7 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                         type="button"
                         variant="mythos"
                         onClick={step === 6 ? handleFinish : () => setStep(step + 1)}
-                        disabled={(step === 1 && !name) || (step === 3 && !selectedOccupationId) || isSaving}
+                        disabled={(step === 1 && !name) || (step === 2 && !isAllAssigned) || (step === 3 && !selectedOccupationId) || isSaving}
                     >
                         {step === 6 ? (isSaving ? 'Salvando...' : 'Finalizar Ficha') : 'Próximo Passo'}
                     </Button>

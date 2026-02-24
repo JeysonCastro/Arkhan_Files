@@ -9,7 +9,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um revólver padrão de culatra rotativa, muito comum entre detetives articulares e forças da lei na década de 1920. Confiável e fácil de esconder.',
         type: 'Arma de Fogo',
         quantity: 1,
-        stats: 'Dano: 1d10 | Alcance: 15m | Munição: 6 | Defeito: 100'
+        stats: 'Dano: 1d10 | Alcance: 15m | Munição: 6 | Defeito: 100',
+        imageUrl: '/assets/weapons/wpn_revolver_38.png'
     },
     {
         id: 'wpn_revolver_45',
@@ -17,7 +18,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Pistola semiautomática militar com grande poder de parada, trazida por muitos veteranos da Grande Guerra.',
         type: 'Arma de Fogo',
         quantity: 1,
-        stats: 'Dano: 1d10+2 | Alcance: 15m | Munição: 7 | Defeito: 100'
+        stats: 'Dano: 1d10+2 | Alcance: 15m | Munição: 7 | Defeito: 100',
+        imageUrl: '/assets/weapons/wpn_m1911_1771891190599.png'
     },
     {
         id: 'wpn_rifle_3006',
@@ -25,7 +27,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Rifle de ação por ferrolho, excelente para caça pesada e engajamentos a longa distância.',
         type: 'Arma de Fogo',
         quantity: 1,
-        stats: 'Dano: 2d6+4 | Alcance: 110m | Munição: 5 | Defeito: 100'
+        stats: 'Dano: 2d6+4 | Alcance: 110m | Munição: 5 | Defeito: 100',
+        imageUrl: '/assets/weapons/wpn_rifle_3006_1771891253192.png'
     },
     {
         id: 'wpn_escopeta_cano_duplo',
@@ -33,7 +36,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Arma de caça devastadora à queima-roupa. Ideal para repelir ameaças físicas grandes quando as coisas saem das sombras.',
         type: 'Arma de Fogo',
         quantity: 1,
-        stats: 'Dano: 4d6 (10m) / 2d6 (20m) / 1d6 (50m) | Munição: 2 | Defeito: 100'
+        stats: 'Dano: 4d6 (10m) / 2d6 (20m) / 1d6 (50m) | Munição: 2 | Defeito: 100',
+        imageUrl: '/assets/weapons/wpn_shotgun_db_1771891205575.png'
     },
     {
         id: 'wpn_submetralhadora_thompson',
@@ -41,7 +45,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'A infame "Metralhadora Tommy". Despeja uma quantidade imensa de chumbo num curto espaço de tempo. Ilegal sem licença.',
         type: 'Arma de Fogo',
         quantity: 1,
-        stats: 'Dano: 1d10+2 | Alcance: 20m | Munição: 50 | Defeito: 96'
+        stats: 'Dano: 1d10+2 | Alcance: 20m | Munição: 50 | Defeito: 96',
+        imageUrl: '/assets/weapons/wpn_tommy_gun_1771891287739.png'
     },
 
     // --- ARMAS BRANCAS ---
@@ -59,7 +64,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma lâmina dobrável comum, útil para cortar cordas ou como arma de última de recurso.',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d4 + BC'
+        stats: 'Dano: 1d4 + BC',
+        imageUrl: '/assets/weapons/wpn_knife_small_1771891082367.png'
     },
     {
         id: 'wpn_taco_beisebol',
@@ -67,7 +73,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um bastão de madeira sólida. Se balançado com força suficiente, pode quebrar ossos humanos com facilidade.',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d8 + BC'
+        stats: 'Dano: 1d8 + BC',
+        imageUrl: '/assets/weapons/wpn_baseball_bat_1771891128122.png'
     },
     {
         id: 'wpn_machete',
@@ -75,7 +82,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Aram de lâmina pesada projetada para cortar folhagem densa, ou carne macia.',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d8 + BC'
+        stats: 'Dano: 1d8 + BC',
+        imageUrl: '/assets/weapons/wpn_machete_1771891098882.png'
     },
     {
         id: 'wpn_machado_incendio',
@@ -124,7 +132,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         name: 'Estatueta Grotesca de Cthulhu',
         description: 'Uma escultura pequena em pedra-sabão negra e escorregadia ao toque. Retrata algo que é vagamente um polvo, um dragão e uma caricatura humana.',
         type: 'Artefato',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/item_strange_amulet_1771891354388.png'
     },
     {
         id: 'art_crucifixo_prata_antigo',
@@ -142,7 +151,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma maleta de couro contendo bandagens de gaze, mercúrio-cromo, morfina, torniquete e instrumentos cirúrgicos básicos.',
         type: 'Equipamento Méd.',
         quantity: 1,
-        stats: 'Uso: Garante um Dado de Vantagem em testes de Primeiros Socorros'
+        stats: 'Uso: Garante um Dado de Vantagem em testes de Primeiros Socorros',
+        imageUrl: '/assets/items/item_medical_kit_1771891320726.png'
     },
     {
         id: 'utl_lanterna',
@@ -233,7 +243,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         name: 'Diário Encapadernado em Pele',
         description: 'Um caderno pequeno cujas páginas exalam horror, e sua capa parece feita de algum tipo peculiar de couro curado humano. Está repleto de datas astronômicas circuladas com fúria.',
         type: 'Evidência',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/item_old_journal_1771891338447.png'
     },
     {
         id: 'doc_telegrama_urgente',

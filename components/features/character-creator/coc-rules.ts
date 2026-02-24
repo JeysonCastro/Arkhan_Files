@@ -116,6 +116,7 @@ export type Occupation = {
     name: string;
     description: string;
     calculateOccupationalPoints: (attrs: Attributes) => number;
+    pointsFormulaText: string;
     classSkills: string[];
     minCreditRating: number;
     maxCreditRating: number;
@@ -123,47 +124,92 @@ export type Occupation = {
 
 export const Occupations: Occupation[] = [
     {
-        id: "private_investigator",
-        name: "Detetive Particular",
-        description: "Um sabujo de aluguel, acostumado a rastrear pessoas, fotografar maridos infiéis na calada da noite e conversar doce (ou agressivamente) por trás das trincheiras sociais em busca de pistas essenciais.",
-        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
-        classSkills: ["Arte/Ofício", "Disfarce", "Direito", "Uso de Bibliotecas", "Charme", "Lábia (Fast Talk)", "Intimidação", "Persuasão", "Psicologia", "Encontrar", "Briga", "Armas de Fogo (Pistola)", "Nível de Crédito"],
+        id: "antiquarian",
+        name: "Antiquário",
+        description: "Negociante de obras antigas, livros valiosos de origens não registradas e relíquias raras. Você entende o valor intrínseco num artefato bizarro cravado que um fazendeiro insano vendeu em sua praça.",
+        calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["Avaliação", "Arte/Ofício", "História", "Uso de Bibliotecas", "Línguas Estrangeiras", "Charme", "Encontrar", "Ocultismo", "Nível de Crédito"],
+        minCreditRating: 30,
+        maxCreditRating: 70
+    },
+    {
+        id: "author",
+        name: "Autor / Escritor",
+        description: "Alguém que vive da palavra escrita, investigando lendas locais e folclore sombrio para alimentar as páginas de suas próximas obras obscuras.",
+        calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["Arte/Ofício", "História", "Uso de Bibliotecas", "Mundo Natural", "Ocultismo", "Língua (Materna)", "Psicologia", "Persuasão", "Nível de Crédito"],
         minCreditRating: 9,
         maxCreditRating: 30
     },
     {
+        id: "dilettante",
+        name: "Diletante",
+        description: "Um indivíduo rico que nunca precisou trabalhar pesado. Vive pulando de interesse em interesse exótico para matar o tédio de sua vida burguesa.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (attrs.APP * 2),
+        pointsFormulaText: "EDU × 2 + APA × 2",
+        classSkills: ["Arte/Ofício", "Armas de Fogo (Pistola)", "Armas de Fogo (Rifle/Escopeta)", "Línguas Estrangeiras", "Charme", "Dirigir Automóvel", "Natação", "Nível de Crédito"],
+        minCreditRating: 50,
+        maxCreditRating: 99
+    },
+    {
         id: "doctor",
-        name: "Médico de Medicina",
-        description: "Um curador profissional, que entende profundamente de doenças pavorosas, da intrincada anatomia humana e, como consequência de suas cirurgias e remédios, possui a frieza acadêmica no toque do corpo falecido.",
+        name: "Médico",
+        description: "Um curador profissional, que entende profundamente da intrincada anatomia humana e possui a frieza acadêmica no toque de um corpo falecido.",
         calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
-        classSkills: ["Primeiros Socorros", "Línguas Estrangeiras", "Medicina", "Psicologia", "Ciência", "Charme", "Lábia (Fast Talk)", "Intimidação", "Persuasão", "Nível de Crédito"],
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["Primeiros Socorros", "Línguas Estrangeiras", "Medicina", "Psicologia", "Ciência", "Persuasão", "Lábia (Fast Talk)", "Psicanálise", "Nível de Crédito"],
         minCreditRating: 30,
         maxCreditRating: 80
     },
     {
         id: "journalist",
         name: "Jornalista / Repórter",
-        description: "Sua motivação é a sede de ser o primeiro a registrar a verdade por trás da manchete, seja ela um escândalo político, um crime horrendo ocorrido nos bairros baixos ou casos obscuros de assombrações abafados pela polícia britânica.",
+        description: "A sede de ser o primeiro a registrar a verdade por trás da manchete dirige sua vida, mesmo se significar se esgueirar em mansões supostamente assombradas.",
         calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
-        classSkills: ["Arte/Ofício", "História", "Uso de Bibliotecas", "Língua (Materna)", "Charme", "Lábia (Fast Talk)", "Intimidação", "Persuasão", "Psicologia", "Nível de Crédito"],
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["Arte/Ofício", "História", "Uso de Bibliotecas", "Língua (Materna)", "Lábia (Fast Talk)", "Psicologia", "Encontrar", "Furtividade", "Nível de Crédito"],
         minCreditRating: 9,
         maxCreditRating: 30
     },
     {
-        id: "antiquarian",
-        name: "Antiquário",
-        description: "Negociante de obras antigas, livros valiosos de origens não registradas e relíquias raras. Você entende qual o valor intrínseco num artefato bizarro cravado que um fazendeiro insano do interior vendeu em sua praça.",
+        id: "police_detective",
+        name: "Policial Detetive",
+        description: "Experiente inspetor de polícia dos departamentos de homicídios da cidade. Acostumado a ver os crimes terríveis da humanidade, mas não o que se esconde na escuridão real.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
+        pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
+        classSkills: ["Disfarce", "Armas de Fogo (Pistola)", "Direito", "Ouvir", "Intimidação", "Psicologia", "Encontrar", "Briga", "Nível de Crédito"],
+        minCreditRating: 20,
+        maxCreditRating: 50
+    },
+    {
+        id: "private_investigator",
+        name: "Detetive Particular",
+        description: "Um sabujo de aluguel, acostumado a rastrear pessoas na calada da noite e conversar por trás das trincheiras sociais em busca de pistas para quem pagar bem.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
+        pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
+        classSkills: ["Arte/Ofício", "Disfarce", "Direito", "Uso de Bibliotecas", "Lábia (Fast Talk)", "Psicologia", "Encontrar", "Armas de Fogo (Pistola)", "Nível de Crédito"],
+        minCreditRating: 9,
+        maxCreditRating: 30
+    },
+    {
+        id: "professor",
+        name: "Professor Universitário",
+        description: "Um acadêmico cercado de poeira e livros clássicos em universidades ilustres (como a Universidade Miskatonic). Seu intelecto é sua maior arma e fardo.",
         calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
-        classSkills: ["Avaliação", "Arte/Ofício", "História", "Uso de Bibliotecas", "Línguas Estrangeiras", "Charme", "Lábia (Fast Talk)", "Intimidação", "Persuasão", "Encontrar", "Nível de Crédito"],
-        minCreditRating: 30,
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["Uso de Bibliotecas", "Línguas Estrangeiras", "Língua (Materna)", "Psicologia", "História", "Ciência", "Antropologia", "Arqueologia", "Nível de Crédito"],
+        minCreditRating: 20,
         maxCreditRating: 70
     },
     {
         id: "occultist",
         name: "Ocultista",
-        description: "Estudioso dos campos arcanos, sociedades submersas no esoterismo e cultos seculares de seitas já banidas pelas Igrejas Católicas. Se debruça em tomos proibidos que, no final, sempre expõem os horrores da existência real.",
+        description: "Estudioso dos campos arcanos, sociedades submersas no esoterismo e cultos seculares. Se debruça em tomos estranhos que expõem os horrores do desconhecido.",
         calculateOccupationalPoints: (attrs) => attrs.EDU * 4,
-        classSkills: ["História", "Uso de Bibliotecas", "Ocultismo", "Ciência", "Charme", "Lábia (Fast Talk)", "Intimidação", "Persuasão", "Línguas Estrangeiras", "Nível de Crédito"],
+        pointsFormulaText: "EDU × 4",
+        classSkills: ["História", "Uso de Bibliotecas", "Ocultismo", "Ciência", "Persuasão", "Línguas Estrangeiras", "Antropologia", "Mitos de Cthulhu", "Nível de Crédito"],
         minCreditRating: 9,
         maxCreditRating: 65
     }
