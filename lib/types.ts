@@ -86,6 +86,7 @@ export interface Investigator {
 
     // VTT Status Effects
     isMajorWound?: boolean;
+    isFirearmReady?: boolean;
     madnessState?: 'normal' | 'bout_of_madness' | 'underlying_insanity';
 
     avatar?: any; // Avatar Paperdoll config

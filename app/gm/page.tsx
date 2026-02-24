@@ -5,16 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MOCK_INVESTIGATORS } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
-import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus } from "lucide-react";
+import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
 import { CompanionCard } from "@/components/features/session/companion-card";
 import { Pinboard } from "@/components/features/session/pinboard";
+import { InitiativeTracker } from "@/components/features/combat/initiative-tracker";
 import { useInvestigator } from "@/hooks/use-investigator";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { MASTER_ITEMS_DB } from "@/lib/items-db";
 import { EquipmentItem } from "@/lib/types";
@@ -29,6 +31,9 @@ export default function GMPage() {
     const [isCreatingSession, setIsCreatingSession] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
 
+    // Global Environment State (Lights Out)
+    const [isLightsOut, setIsLightsOut] = useState(false);
+
     // Roll Requests
     const [activeRolls, setActiveRolls] = useState<any[]>([]);
     const [showRollModal, setShowRollModal] = useState(false);
@@ -36,12 +41,14 @@ export default function GMPage() {
     const [rollTargetValue, setRollTargetValue] = useState("");
     const [rollDiceCount, setRollDiceCount] = useState("1");
     const [rollDiceType, setRollDiceType] = useState("d100");
+    const [rollIsBlind, setRollIsBlind] = useState(false);
 
     // Item Distribution
     const [showItemModal, setShowItemModal] = useState(false);
     const [showSheetModal, setShowSheetModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [showPinboard, setShowPinboard] = useState(false);
+    const [showSoundModal, setShowSoundModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     // State for the selected investigator (modal)
@@ -142,7 +149,8 @@ export default function GMPage() {
                         ...payload.new.data,
                         id: payload.new.id,
                         name: payload.new.name,
-                        occupation: payload.new.occupation
+                        occupation: payload.new.occupation,
+                        isFirearmReady: payload.new.is_firearm_ready || false
                     };
 
                     setInvestigators(prev => prev.map(inv => inv.id === newData.id ? newData : inv));
@@ -187,6 +195,14 @@ export default function GMPage() {
 
             if (error) throw error;
             setSessions(data || []);
+
+            // Set initial lights out state if a session is selected
+            if (selectedSessionId && selectedSessionId !== 'ALL') {
+                const currentSession = data?.find(s => s.id === selectedSessionId);
+                if (currentSession) {
+                    setIsLightsOut(currentSession.is_lights_out || false);
+                }
+            }
         } catch (err) {
             console.error("Error fetching sessions:", err);
         }
@@ -227,6 +243,13 @@ export default function GMPage() {
         setSelectedSessionId(sessionId);
         fetchInvestigators(sessionId);
         setSelectedId(null); // Clear selected investigator when changing session
+
+        const session = sessions.find(s => s.id === sessionId);
+        if (session) {
+            setIsLightsOut(session.is_lights_out || false);
+        } else {
+            setIsLightsOut(false);
+        }
     };
 
     const fetchInvestigators = async (sessionId: string) => {
@@ -263,7 +286,8 @@ export default function GMPage() {
                 ...row.data,
                 id: row.id,
                 name: row.name,
-                occupation: row.occupation
+                occupation: row.occupation,
+                isFirearmReady: row.is_firearm_ready || false
             }));
 
             setInvestigators(mapped);
@@ -280,6 +304,46 @@ export default function GMPage() {
     const handleSelectInvestigator = (inv: Investigator) => {
         setInvestigator(inv); // Initialize the hook with the selected data
         setSelectedId(inv.id);
+    };
+
+    const toggleLightsOut = async () => {
+        if (!selectedSessionId || selectedSessionId === 'ALL') return;
+        try {
+            const newState = !isLightsOut;
+            const { error } = await supabase
+                .from('sessions')
+                .update({ is_lights_out: newState })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setIsLightsOut(newState);
+
+            // Alerta local pro GM
+            if (newState) {
+                console.log("As luzes se apagaram na sessão.");
+            } else {
+                console.log("As luzes se acenderam na sessão.");
+            }
+        } catch (err) {
+            console.error("Erro ao alterar iluminação:", err);
+            alert("Erro ao alterar a iluminação global da sessão.");
+        }
+    };
+
+    const handlePlaySound = async (url: string) => {
+        if (!selectedSessionId || selectedSessionId === 'ALL') return;
+        const channel = supabase.channel(`session_global_${selectedSessionId}`);
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'play_sound',
+                    payload: { soundUrl: url }
+                });
+                console.log("Som disparado:", url);
+                supabase.removeChannel(channel);
+            }
+        });
     };
 
     const handleClose = () => {
@@ -361,6 +425,7 @@ export default function GMPage() {
                 target_value: rollTargetValue ? parseInt(rollTargetValue) : null,
                 dice_count: parseInt(rollDiceCount),
                 dice_type: rollDiceType,
+                is_blind: rollIsBlind,
                 status: 'PENDING'
             }]);
 
@@ -371,6 +436,7 @@ export default function GMPage() {
             setRollTargetValue("");
             setRollDiceCount("1");
             setRollDiceType("d100");
+            setRollIsBlind(false);
         } catch (err) {
             console.error("Error creating roll request:", err);
             alert("Erro ao solicitar rolagem.");
@@ -438,6 +504,23 @@ export default function GMPage() {
                             Nova Sessão
                         </Button>
                         <Button
+                            onClick={() => setShowSoundModal(true)}
+                            disabled={selectedSessionId === 'ALL'}
+                            className="bg-black/40 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-[var(--color-mythos-gold)]/10 transition-colors whitespace-nowrap hidden sm:flex"
+                            title="Soundpad"
+                        >
+                            <Volume2 className="w-4 h-4 mr-2" />
+                            Sons
+                        </Button>
+                        <Button
+                            onClick={toggleLightsOut}
+                            disabled={selectedSessionId === 'ALL'}
+                            className={`border transition-colors whitespace-nowrap flex-1 lg:flex-none justify-center font-serif tracking-widest ${isLightsOut ? 'bg-[var(--color-mythos-blood)] border-red-500 hover:bg-red-800 text-white shadow-[0_0_15px_rgba(200,0,0,0.5)]' : 'bg-black/40 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                            title={isLightsOut ? "Acender Luzes" : "Apagar Luzes (Pitch Black)"}
+                        >
+                            {isLightsOut ? "LUZ!" : "Apagar Luzes"}
+                        </Button>
+                        <Button
                             onClick={() => setShowPinboard(true)}
                             disabled={selectedSessionId === 'ALL'}
                             className="bg-stone-900 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-stone-800 transition-colors whitespace-nowrap hidden sm:flex"
@@ -474,6 +557,13 @@ export default function GMPage() {
                 }}
             >
                 <div className="absolute inset-0 overflow-y-auto px-4 py-8 md:px-12 relative z-10 flex flex-col min-h-full">
+
+                    {/* Initiative Tracker Sidebar */}
+                    {investigators.length > 0 && selectedSessionId !== 'ALL' && (
+                        <div className="hidden xl:block absolute left-4 top-24 z-40">
+                            <InitiativeTracker investigators={investigators} />
+                        </div>
+                    )}
 
                     {/* GM Area (Head of Table Top) */}
                     <div className="flex justify-center mb-16 pointer-events-none">
@@ -628,18 +718,34 @@ export default function GMPage() {
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Valor Alvo do Investigador</label>
-                                        <input
-                                            type="number"
-                                            value={rollTargetValue}
-                                            onChange={e => setRollTargetValue(e.target.value)}
-                                            className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-mono text-xl focus:outline-none focus:border-[var(--color-mythos-gold)]"
-                                            placeholder="Ex: 50"
-                                        />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-[var(--color-mythos-gold-dim)] mb-1">Valor Alvo (Abaixo de)</p>
+                                            <input
+                                                type="number"
+                                                value={rollTargetValue}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRollTargetValue(e.target.value)}
+                                                placeholder="Ex: 50"
+                                                className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] p-2 rounded focus:outline-none focus:border-[var(--color-mythos-gold)]"
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2 mt-4 bg-[#1a0f0a] border border-[var(--color-mythos-blood)]/40 p-3 rounded shadow-inner">
+                                        <input
+                                            type="checkbox"
+                                            id="blindRoll"
+                                            className="accent-[var(--color-mythos-blood)] w-4 h-4 cursor-pointer"
+                                            checked={rollIsBlind}
+                                            onChange={(e) => setRollIsBlind(e.target.checked)}
+                                        />
+                                        <label htmlFor="blindRoll" className="text-sm font-serif text-[var(--color-mythos-gold-dim)] cursor-pointer flex-1">
+                                            <strong className="text-[var(--color-mythos-blood)] tracking-wider">Rolagem Oculta (Blind Roll)</strong>
+                                            <span className="block text-[10px] text-stone-500">O jogador não o resultado real do dado. Apenas você verá o que aconteceu.</span>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 mt-6">
                                         <div className="space-y-2">
                                             <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Qtd. Dados</label>
                                             <input
@@ -902,8 +1008,8 @@ export default function GMPage() {
 
                                     <div className="flex justify-between items-start ml-5 mb-2">
                                         <span className="text-xs font-[family-name:--font-typewriter] font-bold truncate max-w-[120px] uppercase text-black">{inv?.name || 'Desconhecido'}</span>
-                                        <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 border border-black shadow-sm ${roll.status === 'PENDING' ? 'bg-yellow-200 text-black' : 'bg-gray-800 text-white'}`}>
-                                            {roll.status === 'PENDING' ? 'Em Andamento' : 'Realizado'}
+                                        <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 border shadow-sm ${roll.status === 'PENDING' ? 'bg-yellow-200 text-black border-yellow-400' : 'bg-gray-800 text-white border-black'} ${roll.is_blind ? 'ring-2 ring-[var(--color-mythos-blood)] ring-offset-1 ring-offset-[#f4e4bc]' : ''}`}>
+                                            {roll.status === 'PENDING' ? 'Em Andamento' : 'Realizado'} {roll.is_blind && '(Oculto)'}
                                         </span>
                                     </div>
                                     <div className="mt-1 flex justify-between items-end border-t border-black/20 pt-2">
@@ -936,6 +1042,49 @@ export default function GMPage() {
                     isGM={true}
                 />,
                 document.body
+            )}
+
+            {/* Soundpad Modal */}
+            {showSoundModal && (
+                <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full max-w-lg p-6 shadow-2xl relative">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 className="text-xl font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase">Mesa de Som (Soundpad)</h3>
+                                <p className="text-xs text-stone-500 font-serif mt-1">Dispare efeitos sonoros diretamente nos navegadores dos jogadores.</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-black/20" onClick={() => setShowSoundModal(false)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-64 overflow-y-auto pr-2">
+                            {[
+                                { name: "Batida na Porta", url: "https://www.soundjay.com/door/sounds/door-knock-1.mp3" },
+                                { name: "Passos Lentos", url: "https://www.soundjay.com/human/sounds/footsteps-4.mp3" },
+                                { name: "Passos Correndo", url: "https://www.soundjay.com/human/sounds/running-1.mp3" },
+                                { name: "Sussurros Incompreensíveis", url: "https://pixabay.com/audio/download/whispering-8106.mp3" },
+                                { name: "Grito Homem Longe", url: "https://pixabay.com/audio/download/man-scream-121085.mp3" },
+                                { name: "Grito Mulher Terror", url: "https://pixabay.com/audio/download/female-scream-117355.mp3" },
+                                { name: "Respiração Ofegante", url: "https://www.soundjay.com/human/sounds/breath-01.mp3" },
+                                { name: "Coração Acelerado", url: "https://www.soundjay.com/human/sounds/heartbeat-01a.mp3" },
+                                { name: "Vidro Quebrando", url: "https://www.soundjay.com/misc/sounds/glass-breaking-1.mp3" },
+                                { name: "Cão Uivando", url: "https://www.soundjay.com/nature/sounds/dog-howling-1.mp3" },
+                                { name: "Corvos (Agouro)", url: "https://www.soundjay.com/nature/sounds/crows-1.mp3" },
+                                { name: "Madness Drone", url: "https://pixabay.com/audio/download/dark-ambient-drone-117240.mp3" }
+                            ].map((snd, idx) => (
+                                <Button
+                                    key={idx}
+                                    onClick={() => handlePlaySound(snd.url)}
+                                    className="h-16 flex flex-col items-center justify-center bg-black hover:bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)]/30 hover:border-[var(--color-mythos-gold)] transition-colors group"
+                                >
+                                    <Volume2 className="w-4 h-4 text-[var(--color-mythos-gold-dim)] group-hover:text-[var(--color-mythos-gold)] mb-1 shrink-0" />
+                                    <span className="text-xs font-serif uppercase tracking-widest text-stone-300 group-hover:text-[var(--color-mythos-gold)] truncate w-full text-center px-2">{snd.name}</span>
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

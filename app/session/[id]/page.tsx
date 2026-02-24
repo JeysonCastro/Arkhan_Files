@@ -13,6 +13,7 @@ import { PlayerRollListener } from "@/components/features/dice/player-roll-liste
 import { CompanionCard } from "@/components/features/session/companion-card";
 import { Pinboard } from "@/components/features/session/pinboard";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { Crosshair } from "lucide-react";
 
 export default function PlayerSessionView() {
     const params = useParams();
@@ -32,10 +33,15 @@ export default function PlayerSessionView() {
     // Handout / Secret Delivery Modal State
     const [receivedItem, setReceivedItem] = useState<any | null>(null);
 
+    // Fog of War / Flashlight state
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [isFlashlightOn, setIsFlashlightOn] = useState(false);
+
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+        setMousePos({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     }, []);
 
     useEffect(() => {
@@ -54,7 +60,7 @@ export default function PlayerSessionView() {
             // 1. Fetch Session Info
             const { data: sessionInfo, error: sessionError } = await supabase
                 .from('sessions')
-                .select('name, is_active')
+                .select('name, is_active, is_lights_out')
                 .eq('id', sessionId)
                 .single();
 
@@ -103,6 +109,7 @@ export default function PlayerSessionView() {
                         luck: investigatorData?.attributes?.LUCK?.current || 0,
                         isMajorWound: investigatorData?.isMajorWound || false,
                         madnessState: investigatorData?.madnessState || 'normal',
+                        isFirearmReady: inv.is_firearm_ready || false,
                         inventory: investigatorData?.inventory || [],
                         rawInvestigatorData: investigatorData // Keep a reference for easy updates
                     };
@@ -147,6 +154,7 @@ export default function PlayerSessionView() {
                             luck: invData?.attributes?.LUCK?.current || 0,
                             isMajorWound: invData?.isMajorWound || false,
                             madnessState: invData?.madnessState || 'normal',
+                            isFirearmReady: payload.new.is_firearm_ready || false,
                             avatar: invData?.avatar || newCompanions[idx].avatar,
                             portrait: invData?.portrait || invData?.personalData?.portrait || newCompanions[idx].portrait,
                             inventory: invData?.inventory || [],
@@ -173,10 +181,45 @@ export default function PlayerSessionView() {
                 console.log("Supabase Player Realtime Status:", status);
             });
 
+        // Listen for Global Session Changes (Lights Out)
+        const sessionSub = supabase
+            .channel(`session_global_${params.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'sessions',
+                filter: `id=eq.${params.id}`
+            }, (payload) => {
+                setSessionData((prev: any) => prev ? {
+                    ...prev,
+                    is_lights_out: payload.new.is_lights_out
+                } : prev);
+            })
+            .on('broadcast', { event: 'play_sound' }, (payload) => {
+                if (payload.payload?.soundUrl) {
+                    const audio = new Audio(payload.payload.soundUrl);
+                    audio.volume = 0.5;
+                    audio.play().catch(e => console.error("Audio playback blocked:", e));
+                }
+            })
+            .subscribe();
+
         return () => {
             supabase.removeChannel(subscription);
+            supabase.removeChannel(sessionSub);
         };
     }, [params.id, isLoadingData]);
+
+    const isLightsOut = sessionData?.is_lights_out;
+
+    useEffect(() => {
+        if (!isLightsOut || !isFlashlightOn) return;
+        const handleMouseMove = (e: MouseEvent) => {
+            setMousePos({ x: e.clientX, y: e.clientY });
+        };
+        window.addEventListener("mousemove", handleMouseMove);
+        return () => window.removeEventListener("mousemove", handleMouseMove);
+    }, [isLightsOut, isFlashlightOn]);
 
     if (isLoading || isLoadingData) return <LoadingScreen message="Entrando na Mesa..." />;
 
@@ -220,10 +263,31 @@ export default function PlayerSessionView() {
         }
     };
 
+    const handleToggleFirearm = async () => {
+        if (!currentUserInvestigator) return;
+        try {
+            const newState = !currentUserInvestigator.isFirearmReady;
+            // Optimistic update technically handled by realtime, but we fire the DB call
+            const { error } = await supabase
+                .from('investigators')
+                .update({ is_firearm_ready: newState })
+                .eq('id', currentUserInvestigator.id);
+
+            if (error) throw error;
+        } catch (err) {
+            console.error("Error toggling firearm:", err);
+            alert("Erro ao empunhar arma.");
+        }
+    };
+
+    const hasLightSource = currentUserInvestigator?.inventory?.some(
+        (i: any) => i.id === 'utl_lanterna' || i.id === 'utl_lampiao'
+    );
+
     return (
         <div
-            className="min-h-screen relative overflow-hidden"
-            style={{
+            className={`min-h-screen relative overflow-hidden transition-colors duration-1000 ${isLightsOut ? 'bg-[#050505]' : ''}`}
+            style={isLightsOut ? undefined : {
                 backgroundImage: `
                     radial-gradient(circle at center, rgba(30, 80, 50, 0.4) 0%, rgba(10, 20, 10, 0.95) 100%),
                     var(--texture-noise)
@@ -232,6 +296,25 @@ export default function PlayerSessionView() {
                 backgroundBlendMode: 'normal, multiply'
             }}
         >
+            {/* Global Lights Out Overlay Effect (Fog of War) */}
+            <div className={`fixed inset-0 z-[150] pointer-events-none transition-opacity duration-1000 ${isLightsOut ? 'opacity-100' : 'opacity-0'}`}>
+                {isLightsOut && (
+                    <div
+                        className="absolute inset-0 transition-all duration-300 pointer-events-none"
+                        style={{
+                            background: isFlashlightOn
+                                ? `radial-gradient(circle 350px at ${mousePos.x}px ${mousePos.y}px, transparent 10%, rgba(5,5,5,0.85) 50%, rgba(2,2,2,0.98) 100%)`
+                                : 'rgba(5, 5, 5, 0.95)'
+                        }}
+                    >
+                        {/* Ambient subtle pulse if flashlight is off */}
+                        {!isFlashlightOn && (
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[var(--color-mythos-gold)]/5 rounded-full blur-[100px] mix-blend-screen opacity-30 animate-pulse" style={{ animationDuration: '4s' }} />
+                        )}
+                    </div>
+                )}
+            </div>
+
             {/* Table Edge Lighting / Vignette */}
             <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] pointer-events-none z-0" />
 
@@ -337,6 +420,36 @@ export default function PlayerSessionView() {
                                         </span>
                                     )}
                                 </Button>
+
+                                {/* Botões de Ação Rápida (Combate e Exploração) */}
+                                <div className="flex gap-2 mb-8 z-50 -mt-6">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleToggleFirearm}
+                                        className={`border shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-sans uppercase tracking-widest gap-2 hover:scale-105 transition-all text-xs w-48
+                                            ${currentUserInvestigator.isFirearmReady
+                                                ? 'bg-blue-900 border-blue-500 text-blue-100 font-bold shadow-[0_0_15px_rgba(59,130,246,0.6)]'
+                                                : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                                    >
+                                        <Crosshair className="w-4 h-4" />
+                                        {currentUserInvestigator.isFirearmReady ? 'Arma em Punho!' : 'Empunhar Arma'}
+                                    </Button>
+
+                                    {/* Lanterna Fog of War Toggle */}
+                                    {hasLightSource && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setIsFlashlightOn(!isFlashlightOn)}
+                                            className={`border shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-sans uppercase tracking-widest gap-2 hover:scale-105 transition-all text-xs w-48
+                                                ${isFlashlightOn
+                                                    ? 'bg-[var(--color-mythos-gold)]/20 border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-bold shadow-[0_0_15px_rgba(200,160,80,0.4)]'
+                                                    : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                                        >
+                                            <Zap className="w-4 h-4" />
+                                            {isFlashlightOn ? 'Apagar Luz' : 'Acender Lanterna'}
+                                        </Button>
+                                    )}
+                                </div>
 
                                 <div className="transform translate-y-4 hover:-translate-y-2 hover:scale-110 transition-all duration-500 z-50">
                                     {/* Subtle spotlight on the user */}

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { PinboardItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { X, Plus, Image as ImageIcon, FileText, Trash2, GripHorizontal } from "lucide-react";
+import { MASTER_ITEMS_DB } from "@/lib/items-db";
 
 interface PinboardProps {
     sessionId: string;
@@ -16,6 +17,8 @@ interface PinboardProps {
 export function Pinboard({ sessionId, onClose, isGM = false }: PinboardProps) {
     const [items, setItems] = useState<PinboardItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [imageSearch, setImageSearch] = useState("");
     const boardRef = useRef<HTMLDivElement>(null);
 
     // Fetch initial items
@@ -62,8 +65,8 @@ export function Pinboard({ sessionId, onClose, isGM = false }: PinboardProps) {
         if (!item) return;
 
         // info.offset is how much it moved in this drag
-        const newX = item.position_x + info.offset.x;
-        const newY = item.position_y + info.offset.y;
+        const newX = Math.round(item.position_x + info.offset.x);
+        const newY = Math.round(item.position_y + info.offset.y);
 
         // Optimistic local update
         setItems(prev => prev.map(i => i.id === id ? { ...i, position_x: newX, position_y: newY } : i));
@@ -78,22 +81,30 @@ export function Pinboard({ sessionId, onClose, isGM = false }: PinboardProps) {
             .eq('id', id);
     };
 
-    const handleAddItem = async (type: 'NOTE' | 'IMAGE') => {
+    const handleAddItem = async (type: 'NOTE' | 'IMAGE', url?: string, title?: string) => {
         const newItem = {
             session_id: sessionId,
-            title: type === 'NOTE' ? 'Nova Nota' : 'Nova Imagem',
+            title: title || (type === 'NOTE' ? 'Nova Nota' : 'Nova Imagem'),
             content: type === 'NOTE' ? 'Escreva aqui...' : null,
             type: type,
-            image_url: type === 'IMAGE' ? '/placeholder.jpg' : null,
-            position_x: window.innerWidth / 2 - 100 + (Math.random() * 50),
-            position_y: window.innerHeight / 2 - 100 + (Math.random() * 50),
+            image_url: type === 'IMAGE' ? (url || '/placeholder.jpg') : null,
+            position_x: Math.round(window.innerWidth / 2 - 100 + (Math.random() * 50)),
+            position_y: Math.round(window.innerHeight / 2 - 100 + (Math.random() * 50)),
             z_index: 10,
             rotation: Math.floor(Math.random() * 10) - 5,
             color: 'bg-yellow-100',
         };
 
-        const { error } = await supabase.from('pinboard_items').insert(newItem);
-        if (error) console.error("Error creating item:", error);
+        const { data, error } = await supabase.from('pinboard_items').insert(newItem).select();
+        if (error) {
+            console.error("Full Error creating item:", JSON.stringify(error, null, 2));
+            console.error("Attempted payload:", JSON.stringify(newItem, null, 2));
+            alert(`Erro ao criar item: ${error.message}`);
+        } else if (data) {
+            // Let the realtime subscription handle adding it to the UI, 
+            // but we successfully inserted it.
+            console.log("Successfully created item:", data);
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -123,10 +134,12 @@ export function Pinboard({ sessionId, onClose, isGM = false }: PinboardProps) {
                         <FileText className="w-4 h-4 mr-2" />
                         Nova Nota
                     </Button>
-                    <Button onClick={() => handleAddItem('IMAGE')} variant="outline" size="sm" className="bg-stone-800 hover:bg-stone-700 border-stone-600 disabled:opacity-50" disabled>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        Adicionar Imagem (Em Breve)
-                    </Button>
+                    {isGM && (
+                        <Button onClick={() => setShowImageModal(true)} variant="outline" size="sm" className="bg-stone-800 hover:bg-stone-700 border-stone-600">
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            Adicionar Imagem
+                        </Button>
+                    )}
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-red-900/50 hover:text-red-400">
                     <X className="w-6 h-6" />
@@ -208,6 +221,54 @@ export function Pinboard({ sessionId, onClose, isGM = false }: PinboardProps) {
                     ))
                 )}
             </div>
+
+            {/* Image Selection Modal */}
+            {showImageModal && (
+                <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#1a1815] border-2 border-[#d8c29d]/50 rounded-lg shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+                        <div className="flex justify-between items-center p-4 border-b border-[#d8c29d]/20 bg-black/40">
+                            <h3 className="text-xl font-heading text-[#d8c29d] tracking-widest uppercase flex items-center gap-2">
+                                <ImageIcon className="w-5 h-5" /> Arquivos Físicos e Evidências
+                            </h3>
+                            <Button size="icon" variant="ghost" className="text-red-500 hover:bg-red-900/40" onClick={() => setShowImageModal(false)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+
+                        <div className="p-4 border-b border-[#d8c29d]/20 bg-black/60">
+                            <input
+                                type="text"
+                                placeholder="Procurar item..."
+                                value={imageSearch}
+                                onChange={(e) => setImageSearch(e.target.value)}
+                                className="w-full bg-[#111] border border-[#d8c29d]/30 text-[#d8c29d] p-2 font-serif placeholder:text-[#d8c29d]/40 focus:outline-none focus:border-[#d8c29d]"
+                            />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {MASTER_ITEMS_DB.filter(item =>
+                                item.imageUrl &&
+                                (item.name.toLowerCase().includes(imageSearch.toLowerCase()) ||
+                                    item.type.toLowerCase().includes(imageSearch.toLowerCase()))
+                            ).map((item) => (
+                                <div
+                                    key={item.id}
+                                    onClick={() => {
+                                        handleAddItem('IMAGE', item.imageUrl!, item.name);
+                                        setShowImageModal(false);
+                                    }}
+                                    className="bg-black/50 border border-[#d8c29d]/30 rounded cursor-pointer hover:border-[#d8c29d] hover:scale-105 transition-all flex flex-col items-center p-2 group"
+                                >
+                                    <div className="w-full aspect-square bg-black mb-2 rounded overflow-hidden">
+                                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover sepia-[0.3] group-hover:sepia-0 transition-all" />
+                                    </div>
+                                    <span className="text-xs font-serif text-center text-[#d8c29d] line-clamp-2">{item.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

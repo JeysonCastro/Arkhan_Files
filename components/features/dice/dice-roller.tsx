@@ -189,7 +189,7 @@ export function DiceRoller() {
                             <Dices className="h-5 w-5" />
                             <h3 className="font-heading tracking-widest uppercase font-bold text-sm">Dados do Destino</h3>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-6 w-6 text-gray-400 hover:text-white">
+                        <Button variant="ghost" size="icon" onClick={() => { setIsOpen(false); setRollingDice([]); }} className="h-6 w-6 text-gray-400 hover:text-white">
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -298,16 +298,30 @@ export function DiceRoller() {
 
                     {/* Visual Dice Overlay inside the panel */}
                     {rollingDice.length > 0 && (
-                        <div className="absolute top-0 left-0 w-full h-[50%] flex-wrap flex items-center justify-center p-4 pointer-events-none z-20 gap-2 bg-black/60 backdrop-blur-sm">
-                            {rollingDice.map(d => (
-                                <AnimatedDice
-                                    key={d.id}
-                                    type={d.type}
-                                    isRolling={d.result === null}
-                                    value={d.result}
-                                    size="md"
-                                />
-                            ))}
+                        <div className="absolute top-0 left-0 w-full h-[50%] flex-wrap flex flex-col items-center justify-center p-4 z-20 gap-2 bg-black/80 backdrop-blur-sm border-b border-[var(--color-mythos-gold-dim)]/50 shadow-xl animate-in fade-in slide-in-from-top-2">
+                            <div className="absolute top-2 right-2 z-30">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setRollingDice([])}
+                                    disabled={isRolling}
+                                    className="h-6 w-6 text-gray-400 hover:text-red-500 hover:bg-black/50"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-center gap-2 mt-2 pointer-events-none">
+                                {rollingDice.map(d => (
+                                    <AnimatedDice
+                                        key={d.id}
+                                        type={d.type}
+                                        isRolling={d.result === null}
+                                        value={d.result}
+                                        size="md"
+                                        color="text-[var(--color-mythos-gold)]"
+                                    />
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

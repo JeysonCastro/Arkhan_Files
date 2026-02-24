@@ -261,16 +261,35 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
                         </div>
                     ) : (
                         <div className="flex flex-col items-center space-y-2 animate-in zoom-in-50 duration-500">
-                            <span className="text-7xl font-black text-[var(--color-mythos-parchment)] shadow-black drop-shadow-lg">
-                                {rollResult.number}
-                            </span>
-                            {rollResult.type && (
-                                <span className={`text-2xl font-bold uppercase tracking-widest ${getSuccessColor(rollResult.type)} shadow-black drop-shadow-md`}>
-                                    {rollResult.type === "SUCCESS_WITH_LUCK" ? "SUCESSO (SORTE)" : rollResult.type}
-                                </span>
+                            {activeRequest.is_blind ? (
+                                <>
+                                    <span className="text-7xl font-black text-[var(--color-mythos-blood)] shadow-black drop-shadow-lg animate-pulse" style={{ textShadow: '0 0 20px rgba(220,20,20,0.8)' }}>
+                                        ???
+                                    </span>
+                                    <span className="text-xl font-bold uppercase tracking-widest text-[var(--color-mythos-gold-dim)] shadow-black drop-shadow-md text-center max-w-xs mt-4">
+                                        Os dados foram lançados nas sombras. Apenas o Guardião sabe o que se aproxima...
+                                    </span>
+                                    {/* Botão de Fechar Direto para Blind Rolls */}
+                                    <div className="mt-8">
+                                        <Button onClick={handleAcceptFailure} variant="ghost" className="text-gray-400 hover:text-white border border-gray-800 rounded px-8">
+                                            Aguardar o Destino
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-7xl font-black text-[var(--color-mythos-parchment)] shadow-black drop-shadow-lg">
+                                        {rollResult.number}
+                                    </span>
+                                    {rollResult.type && (
+                                        <span className={`text-2xl font-bold uppercase tracking-widest ${getSuccessColor(rollResult.type)} shadow-black drop-shadow-md`}>
+                                            {rollResult.type === "SUCCESS_WITH_LUCK" ? "SUCESSO (SORTE)" : rollResult.type}
+                                        </span>
+                                    )}
+                                </>
                             )}
 
-                            {rollResult.type === 'FAILURE' && activeRequest.target_value != null && (
+                            {!activeRequest.is_blind && rollResult.type === 'FAILURE' && activeRequest.target_value != null && (
                                 <div className="mt-6 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 pt-4 border-t border-[var(--color-mythos-gold-dim)]/30 w-full">
                                     <div className="flex flex-col items-center gap-4 w-full">
                                         {/* Gastar Sorte option */}
@@ -308,7 +327,8 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
                                 </div>
                             )}
 
-                            {rollResult.type !== 'FAILURE' && !spendingLuck && (
+                            {/* Disable auto text for blind rolls cause we added a button */}
+                            {!activeRequest.is_blind && rollResult.type !== 'FAILURE' && !spendingLuck && (
                                 <p className="text-[var(--color-mythos-gold-dim)]/50 text-xs mt-4 italic">Notificando o Guardião...</p>
                             )}
                         </div>
