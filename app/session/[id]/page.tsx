@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { DiceRoller } from "@/components/features/dice/dice-roller";
 import { PlayerRollListener } from "@/components/features/dice/player-roll-listener";
 import { CompanionCard } from "@/components/features/session/companion-card";
+import { Pinboard } from "@/components/features/session/pinboard";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 
 export default function PlayerSessionView() {
@@ -24,6 +25,13 @@ export default function PlayerSessionView() {
 
     // Backpack State
     const [showInventory, setShowInventory] = useState(false);
+
+    // Pinboard State
+    const [showPinboard, setShowPinboard] = useState(false);
+
+    // Handout / Secret Delivery Modal State
+    const [receivedItem, setReceivedItem] = useState<any | null>(null);
+
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -92,7 +100,11 @@ export default function PlayerSessionView() {
                         hp: investigatorData?.derivedStats?.hp || { current: 0, max: 0 },
                         sanity: investigatorData?.derivedStats?.sanity || { current: 0, max: 0 },
                         mp: investigatorData?.derivedStats?.magicPoints || { current: 0, max: 0 },
-                        inventory: investigatorData?.inventory || []
+                        luck: investigatorData?.attributes?.LUCK?.current || 0,
+                        isMajorWound: investigatorData?.isMajorWound || false,
+                        madnessState: investigatorData?.madnessState || 'normal',
+                        inventory: investigatorData?.inventory || [],
+                        rawInvestigatorData: investigatorData // Keep a reference for easy updates
                     };
                 })
                 .filter((c: unknown) => c !== null) as any[]; // Remove any null elements and cast
@@ -132,9 +144,13 @@ export default function PlayerSessionView() {
                             hp: invData?.derivedStats?.hp || { current: 0, max: 0 },
                             sanity: invData?.derivedStats?.sanity || { current: 0, max: 0 },
                             mp: invData?.derivedStats?.magicPoints || { current: 0, max: 0 },
+                            luck: invData?.attributes?.LUCK?.current || 0,
+                            isMajorWound: invData?.isMajorWound || false,
+                            madnessState: invData?.madnessState || 'normal',
                             avatar: invData?.avatar || newCompanions[idx].avatar,
                             portrait: invData?.portrait || invData?.personalData?.portrait || newCompanions[idx].portrait,
-                            inventory: invData?.inventory || []
+                            inventory: invData?.inventory || [],
+                            rawInvestigatorData: invData
                         };
 
                         // Realtime Item Notification if current user's inventory grew
@@ -142,9 +158,9 @@ export default function PlayerSessionView() {
                             const oldInvLength = prev[idx].inventory?.length || 0;
                             const newInvLength = invData?.inventory?.length || 0;
 
-                            if (newInvLength > oldInvLength) {
-                                // Simple toast or native alert for now
-                                alert("O Guardião colocou um item na sua mochila!");
+                            if (newInvLength > oldInvLength && invData.inventory) {
+                                const newlyAddedItem = invData.inventory[invData.inventory.length - 1];
+                                setReceivedItem(newlyAddedItem);
                             }
                         }
 
@@ -167,6 +183,43 @@ export default function PlayerSessionView() {
     const currentUserInvestigator = companions.find(c => c.isCurrentUser);
     const otherCompanions = companions.filter(c => !c.isCurrentUser);
 
+    const handleSpendLuck = async (amount: number) => {
+        if (!currentUserInvestigator) return;
+
+        try {
+            const currentData = currentUserInvestigator.rawInvestigatorData;
+            if (!currentData || !currentData.attributes || !currentData.attributes.LUCK) return;
+
+            const newLuck = Math.max(0, currentData.attributes.LUCK.current - amount);
+
+            // Create a deep copy of the attributes to update LUCK
+            const updatedAttributes = {
+                ...currentData.attributes,
+                LUCK: {
+                    ...currentData.attributes.LUCK,
+                    current: newLuck
+                }
+            };
+
+            const { error } = await supabase
+                .from('investigators')
+                .update({
+                    data: {
+                        ...currentData,
+                        attributes: updatedAttributes
+                    }
+                })
+                .eq('id', currentUserInvestigator.id);
+
+            if (error) {
+                console.error("Failed to update luck:", error);
+                alert("Erro ao debitar Sorte no banco de dados.");
+            }
+        } catch (e) {
+            console.error("Error handling luck spend:", e);
+        }
+    };
+
     return (
         <div
             className="min-h-screen relative overflow-hidden"
@@ -188,6 +241,8 @@ export default function PlayerSessionView() {
                 <PlayerRollListener
                     sessionId={params.id as string}
                     investigatorId={currentUserInvestigator.id}
+                    currentLuck={currentUserInvestigator.luck}
+                    onSpendLuck={handleSpendLuck}
                 />
             )}
 
@@ -211,9 +266,19 @@ export default function PlayerSessionView() {
                         </div>
                     </div>
 
-                    <Button variant="outline" onClick={fetchSessionData} size="sm" className="border-[var(--color-mythos-gold-dim)]/30 text-[var(--color-mythos-gold-dim)] bg-black/20 hover:bg-black/80 hover:text-[var(--color-mythos-gold)]">
-                        Atualizar Status
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="mythos"
+                            onClick={() => setShowPinboard(true)}
+                            size="sm"
+                            className="bg-stone-900 border-[var(--color-mythos-gold-dim)]/30 hover:bg-stone-800"
+                        >
+                            Quadro de Evidências
+                        </Button>
+                        <Button variant="outline" onClick={fetchSessionData} size="sm" className="border-[var(--color-mythos-gold-dim)]/30 text-[var(--color-mythos-gold-dim)] bg-black/20 hover:bg-black/80 hover:text-[var(--color-mythos-gold)]">
+                            Atualizar Status
+                        </Button>
+                    </div>
                 </div>
 
                 {/* The "Table" Area */}
@@ -346,6 +411,64 @@ export default function PlayerSessionView() {
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Fullscreen Pinboard Modal */}
+            {mounted && showPinboard && createPortal(
+                <Pinboard
+                    sessionId={params.id as string}
+                    onClose={() => setShowPinboard(false)}
+                    isGM={false}
+                />,
+                document.body
+            )}
+
+            {/* Secret Handout Modal */}
+            {mounted && receivedItem && createPortal(
+                <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-500">
+                    <div className="w-full max-w-md bg-[url('/paper-texture.png')] bg-cover relative flex flex-col shadow-[0_0_50px_rgba(0,0,0,1)] rounded-sm border border-[var(--color-mythos-gold-dim)]/50 p-6 text-center" style={{ backgroundBlendMode: 'multiply', backgroundColor: '#2a221b' }}>
+
+                        <div className="absolute top-2 right-2">
+                            <Button size="icon" variant="ghost" className="text-stone-400 hover:text-white" onClick={() => setReceivedItem(null)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+
+                        <div className="mx-auto w-20 h-20 rounded-full bg-black/50 border-2 border-[var(--color-mythos-gold)] flex items-center justify-center mb-4 shadow-inner overflow-hidden">
+                            {receivedItem.imageUrl ? (
+                                <img src={receivedItem.imageUrl} alt={receivedItem.name} className="w-full h-full object-cover sepia-[0.3]" />
+                            ) : (
+                                <Briefcase className="w-10 h-10 text-[var(--color-mythos-gold-dim)]" />
+                            )}
+                        </div>
+
+                        <h2 className="text-xl font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase mb-1">Item Adquirido</h2>
+                        <h3 className="text-2xl font-serif font-bold text-white mb-1 drop-shadow-md">{receivedItem.name}</h3>
+                        <p className="text-[10px] uppercase tracking-widest text-[var(--color-mythos-gold-dim)]/70 mb-4">{receivedItem.type}</p>
+
+                        <div className="bg-black/40 border-y border-[var(--color-mythos-gold-dim)]/20 py-4 mb-6 px-4 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
+                            <p className="text-sm font-serif text-[var(--color-mythos-parchment)]/90 italic leading-relaxed text-center">
+                                "{receivedItem.description}"
+                            </p>
+                            {receivedItem.stats && (
+                                <div className="mt-4 flex justify-center">
+                                    <p className="text-xs font-mono font-bold text-red-400 uppercase tracking-widest bg-red-950/40 border border-red-900/50 inline-block px-3 py-1">
+                                        {receivedItem.stats}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <Button
+                            variant="mythos"
+                            onClick={() => setReceivedItem(null)}
+                            className="w-full bg-stone-900 hover:bg-stone-800 text-lg py-6 shadow-xl"
+                        >
+                            Guardar na Mochila
+                        </Button>
                     </div>
                 </div>,
                 document.body

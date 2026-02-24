@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
 import { CompanionCard } from "@/components/features/session/companion-card";
+import { Pinboard } from "@/components/features/session/pinboard";
 import { useInvestigator } from "@/hooks/use-investigator";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -39,6 +40,8 @@ export default function GMPage() {
     // Item Distribution
     const [showItemModal, setShowItemModal] = useState(false);
     const [showSheetModal, setShowSheetModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
+    const [showPinboard, setShowPinboard] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     // State for the selected investigator (modal)
@@ -318,6 +321,31 @@ export default function GMPage() {
         }
     };
 
+    const handleToggleStatus = async (field: 'isMajorWound' | 'madnessState', value: any) => {
+        if (!investigator) return;
+        try {
+            const { data: dbInv } = await supabase
+                .from('investigators')
+                .select('data')
+                .eq('id', investigator.id)
+                .single();
+
+            if (dbInv) {
+                const newData = { ...dbInv.data };
+                newData[field] = value;
+
+                await supabase
+                    .from('investigators')
+                    .update({ data: newData })
+                    .eq('id', investigator.id);
+
+            }
+        } catch (error) {
+            console.error("Erro ao alterar status:", error);
+            alert("Erro ao alterar o status do investigador.");
+        }
+    };
+
     const handleSendRollRequest = async () => {
         if (!selectedId || !selectedSessionId || selectedSessionId === 'ALL' || !rollSkillName || !rollTargetValue) {
             alert("Preencha a perícia e o valor alvo. Selecione uma sessão específica primeiro.");
@@ -400,19 +428,37 @@ export default function GMPage() {
                         </div>
                     </div>
 
-                    <Button
-                        onClick={handleCreateSession}
-                        disabled={isCreatingSession}
-                        className="bg-black/40 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-[var(--color-mythos-gold)]/10 transition-colors whitespace-nowrap"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nova Sessão {isCreatingSession && '...'}
-                    </Button>
+                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                        <Button
+                            onClick={handleCreateSession}
+                            disabled={isCreatingSession}
+                            className="bg-black/40 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-[var(--color-mythos-gold)]/10 transition-colors whitespace-nowrap flex-1 lg:flex-none justify-center"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Nova Sessão
+                        </Button>
+                        <Button
+                            onClick={() => setShowPinboard(true)}
+                            disabled={selectedSessionId === 'ALL'}
+                            className="bg-stone-900 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-stone-800 transition-colors whitespace-nowrap hidden sm:flex"
+                        >
+                            Quadro
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="text-right hidden sm:block">
-                    <p className="text-2xl font-bold text-[var(--color-mythos-gold)]">{investigators.length}</p>
-                    <p className="text-xs uppercase tracking-widest text-[var(--color-mythos-gold-dim)]">Almas Ativas</p>
+                <div className="text-right flex items-center gap-4 hidden sm:flex">
+                    <Button
+                        onClick={() => setShowPinboard(true)}
+                        disabled={selectedSessionId === 'ALL'}
+                        className="bg-stone-900 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] hover:bg-stone-800 transition-colors whitespace-nowrap sm:hidden lg:flex"
+                    >
+                        Quadro de Evidências
+                    </Button>
+                    <div>
+                        <p className="text-2xl font-bold text-[var(--color-mythos-gold)]">{investigators.length}</p>
+                        <p className="text-xs uppercase tracking-widest text-[var(--color-mythos-gold-dim)]">Almas Ativas</p>
+                    </div>
                 </div>
             </div>
 
@@ -470,6 +516,8 @@ export default function GMPage() {
                                         hp: inv.derivedStats?.hp || { current: 0, max: 0 },
                                         sanity: inv.derivedStats?.sanity || { current: 0, max: 0 },
                                         mp: inv.derivedStats?.magicPoints || { current: 0, max: 0 },
+                                        isMajorWound: inv.isMajorWound || false,
+                                        madnessState: inv.madnessState || 'normal',
                                         inventory: inv.inventory || []
                                     };
 
@@ -517,6 +565,8 @@ export default function GMPage() {
                                         hp: inv.derivedStats?.hp || { current: 0, max: 0 },
                                         sanity: inv.derivedStats?.sanity || { current: 0, max: 0 },
                                         mp: inv.derivedStats?.magicPoints || { current: 0, max: 0 },
+                                        isMajorWound: inv.isMajorWound || false,
+                                        madnessState: inv.madnessState || 'normal',
                                         inventory: inv.inventory || []
                                     };
 
@@ -653,6 +703,12 @@ export default function GMPage() {
                                         Enviar Carta Físico / Item
                                     </Button>
                                     <Button
+                                        onClick={() => setShowStatusModal(true)}
+                                        className="w-full py-4 bg-purple-950/20 hover:bg-purple-900 border border-purple-900/30 hover:border-purple-700 text-purple-600 hover:text-purple-300 font-serif uppercase tracking-widest text-xs transition-colors"
+                                    >
+                                        Surtos & Agonias (Status)
+                                    </Button>
+                                    <Button
                                         onClick={() => setShowSheetModal(true)}
                                         className="w-full py-4 bg-blue-950/20 hover:bg-blue-900 border border-blue-900/30 hover:border-blue-700 text-blue-600 hover:text-blue-300 font-serif uppercase tracking-widest text-xs transition-colors"
                                     >
@@ -773,6 +829,56 @@ export default function GMPage() {
                     </div>
                 </div>
             )}
+
+            {showStatusModal && (
+                <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-[#120a0a] border-2 border-[var(--color-mythos-blood)] rounded-md shadow-2xl w-full max-w-md p-6">
+                        <div className="flex justify-between items-center mb-6 border-b border-[var(--color-mythos-blood)]/30 pb-4">
+                            <div>
+                                <h3 className="text-xl font-heading text-[var(--color-mythos-blood)] uppercase tracking-widest">Surtos & Agonias</h3>
+                                <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator?.name}</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="text-[var(--color-mythos-blood)] hover:text-red-400" onClick={() => setShowStatusModal(false)}>
+                                <X className="w-6 h-6" />
+                            </Button>
+                        </div>
+                        <div className="space-y-6 flex flex-col">
+                            <Button
+                                onClick={() => handleToggleStatus('isMajorWound', !investigator?.isMajorWound)}
+                                className={`w-full py-6 font-serif uppercase tracking-widest border border-red-900 ${investigator?.isMajorWound ? 'bg-[var(--color-mythos-blood)] text-white font-bold' : 'bg-black text-[var(--color-mythos-blood)] hover:bg-red-950/30'}`}
+                            >
+                                <Heart className="w-5 h-5 mr-2" />
+                                {investigator?.isMajorWound ? 'Curar Ferimento Maior' : 'Causar Ferimento Maior'}
+                            </Button>
+
+                            <hr className="border-[var(--color-mythos-gold-dim)]/20" />
+
+                            <Button
+                                onClick={() => handleToggleStatus('madnessState', 'normal')}
+                                className={`w-full py-3 font-serif uppercase border border-gray-700 ${!investigator?.madnessState || investigator.madnessState === 'normal' ? 'bg-gray-800 text-white' : 'bg-black text-gray-400 hover:bg-gray-900'}`}
+                            >
+                                Mente Sã (Normal)
+                            </Button>
+
+                            <Button
+                                onClick={() => handleToggleStatus('madnessState', 'bout_of_madness')}
+                                className={`w-full py-4 font-serif uppercase tracking-widest border border-purple-900 ${investigator?.madnessState === 'bout_of_madness' ? 'bg-[#8822aa] text-white font-bold animate-pulse' : 'bg-black text-[#eeaaff] hover:bg-purple-950/30'}`}
+                            >
+                                <Brain className="w-5 h-5 mr-2" />
+                                Surto de Loucura
+                            </Button>
+
+                            <Button
+                                onClick={() => handleToggleStatus('madnessState', 'underlying_insanity')}
+                                className={`w-full py-4 font-serif uppercase tracking-widest border border-blue-900 ${investigator?.madnessState === 'underlying_insanity' ? 'bg-[#1144bb] text-white font-bold' : 'bg-black text-[#aaaaff] hover:bg-blue-950/30'}`}
+                            >
+                                <Brain className="w-5 h-5 mr-2" />
+                                Loucura Inerente
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Live Rolls Sidebar Log (Right Panel) */}
             {selectedSessionId !== 'ALL' && activeRolls.length > 0 && (
                 <div className="fixed top-24 right-4 bottom-4 w-72 pointer-events-none z-[60] flex flex-col justify-end pb-8">
@@ -821,6 +927,15 @@ export default function GMPage() {
                         })}
                     </div>
                 </div>
+            )}
+
+            {showPinboard && typeof window !== 'undefined' && require('react-dom').createPortal(
+                <Pinboard
+                    sessionId={selectedSessionId}
+                    onClose={() => setShowPinboard(false)}
+                    isGM={true}
+                />,
+                document.body
             )}
         </div>
     );

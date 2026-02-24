@@ -56,7 +56,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma faca de combate militar da Grande Guerra com soco-inglês acoplado na empunhadura.',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d4+2 + BC'
+        stats: 'Dano: 1d4+2 + BC',
+        imageUrl: '/assets/weapons/wpn_faca_trincheira.png'
     },
     {
         id: 'wpn_canivete',
@@ -91,7 +92,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um machado de duas mãos, pesado, de cabo vermelho brilhante. Encontrado em corredores de emergência.',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d8+2 + BC'
+        stats: 'Dano: 1d8+2 + BC',
+        imageUrl: '/assets/weapons/wpn_machado_incendio.png'
     },
 
     // --- TOMOS ARCANOS & ARTEFATOS MÍTICOS ---
@@ -101,7 +103,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Escrito pelo árabe louco Abdul Alhazred. Contém segredos profanos sobre os Grandes Antigos, magias perturbadoras e rituais perigosos. Sua encadernação emana uma presença sinistra.',
         type: 'Tomo do Mito',
         quantity: 1,
-        stats: 'SAN: -1d10/-2d10 (Inicial/Total) | Mito: +15% | Semanas de Estudo: 50'
+        stats: 'SAN: -1d10/-2d10 (Inicial/Total) | Mito: +15% | Semanas de Estudo: 50',
+        imageUrl: '/assets/items/arc_necronomicon.png'
     },
     {
         id: 'arc_necronomicon_fragmento',
@@ -109,7 +112,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Três páginas ressecadas escritas num árabe confuso. As letras parecem se contorcer quando não olhadas diretamente. Cheiram sutilmente a ozônio e sangue velho.',
         type: 'Tomo do Mito',
         quantity: 1,
-        stats: 'Perda SAN: 1d4 | Multiplicador de Mito: +2%'
+        stats: 'Perda SAN: 1d4 | Multiplicador de Mito: +2%',
+        imageUrl: '/assets/items/arc_necronomicon_fragmento.png'
     },
     {
         id: 'arc_de_vermis_mysteriis',
@@ -117,7 +121,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma edição gasta de Ludvig Prinn. Foca extensivamente na feitiçaria invisível, demônios egípcios e nos horrores cultistas estelares.',
         type: 'Tomo do Mito',
         quantity: 1,
-        stats: 'SAN: -1d6/-2d6 | Mito: +12% | Semanas: 40'
+        stats: 'SAN: -1d6/-2d6 | Mito: +12% | Semanas: 40',
+        imageUrl: '/assets/items/arc_de_vermis.png'
     },
     {
         id: 'arc_cultes_des_goules',
@@ -125,7 +130,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um guia abominável escrito pelo Comte d\'Erlette detalhando os hábitos de canibalismo necrófago e clãs de carniçais em toda a França e lendas antigas.',
         type: 'Tomo do Mito',
         quantity: 1,
-        stats: 'SAN: -1d4/-1d10 | Mito: +11% | Semanas: 22'
+        stats: 'SAN: -1d4/-1d10 | Mito: +11% | Semanas: 22',
+        imageUrl: '/assets/items/arc_cultes_des_goules.png'
     },
     {
         id: 'art_estatueta_cthulhu',
@@ -141,7 +147,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um artefato religioso da idade média espanhola. Pode repelir ou queimar entidades sensíveis ao divino ou à prata.',
         type: 'Artefato',
         quantity: 1,
-        stats: 'Efeito: Proporciona vantagem em alguns testes contra certos horrores'
+        stats: 'Efeito: Proporciona vantagem em alguns testes contra certos horrores',
+        imageUrl: '/assets/items/art_crucifixo_prata.png'
     },
 
     // --- EQUIPAMENTOS DE INVESTIGAÇÃO & FERRAMENTAS ---
@@ -159,14 +166,16 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         name: 'Lanterna Elétrica Portátil',
         description: 'Uma lanterna pesada e metálica com lâmpada de filamento amarelado. As pilhas não costumam durar muito no frio...',
         type: 'Ferramenta',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/utl_lanterna.png'
     },
     {
         id: 'utl_isq_zippo',
         name: 'Isqueiro Prateado',
         description: 'Um isqueiro confiável que nunca apaga ao vento. Emite um som metálico característico ao abrir.',
         type: 'Ferramenta',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/utl_isq_zippo.png'
     },
     {
         id: 'utl_lampiao',
@@ -174,7 +183,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma lanterna tradicional americana de chumbo e vidro. Funciona independentemente de baterias, essencial para túneis sem luz.',
         type: 'Ferramenta',
         quantity: 1,
-        stats: 'Duração: 6 horas com vidro cheio'
+        stats: 'Duração: 6 horas com vidro cheio',
+        imageUrl: '/assets/items/utl_lampiao.png'
     },
     {
         id: 'utl_camera_kodak',
@@ -182,7 +192,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma câmera pesada equipada com um acessório para queima de pó de magnésio. Pode gerar flashes fortes o suficiente para cegar inimigos temporariamente.',
         type: 'Ferramenta',
         quantity: 1,
-        stats: 'Requer filme e recarga de pó após cada flash'
+        stats: 'Requer filme e recarga de pó após cada flash',
+        imageUrl: '/assets/items/utl_camera.png'
     },
     {
         id: 'utl_gazuas',
@@ -190,7 +201,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um rolo de couro contendo várias palhetas e chaves de tensão de aço finamente trabalhadas, usadas para arrombar fechaduras mecânicas.',
         type: 'Ferramenta',
         quantity: 1,
-        stats: 'Uso: Exigência para destrancar portas (Dado de Vantagem caso quem use já seja perito)'
+        stats: 'Uso: Exigência para destrancar portas (Dado de Vantagem caso quem use já seja perito)',
+        imageUrl: '/assets/items/utl_gazuas.png'
     },
     {
         id: 'utl_lupa_investigador',
@@ -198,14 +210,16 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma lente de vidro esmerilhado grossa com aro de bronze polido. Essencial para analisar poeira, fios de cabelo e ranhuras microscópicas.',
         type: 'Ferramenta',
         quantity: 1,
-        stats: '+20% em testes de Encontrar (em cenas em minúcias)'
+        stats: '+20% em testes de Encontrar (em cenas em minúcias)',
+        imageUrl: '/assets/items/utl_lupa.png'
     },
     {
         id: 'utl_caderno_anotacoes',
         name: 'Caderno de Anotações Moleskine',
         description: 'Páginas em branco protegidas por couro resistente a água. Perfeito para manter a linha do tempo investigativa intocada da loucura.',
         type: 'Ferramenta',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/utl_caderno.png'
     },
     {
         id: 'utl_pe_de_cabra',
@@ -213,14 +227,16 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Excelente apetrecho mecânico para levantar tampas de túmulo, forçar cofres não blindados e em último caso rachar crânios de cultistas.',
         type: 'Ferramenta',
         quantity: 1,
-        stats: 'Dano: 1d6 + BC | Vantagem para arrombar'
+        stats: 'Dano: 1d6 + BC | Vantagem para arrombar',
+        imageUrl: '/assets/items/utl_pe_de_cabra.png'
     },
     {
         id: 'utl_corda_alpinismo',
         name: 'Rolo de Corda de Cânhamo (15m)',
         description: 'Resistente, trançada na Nova Inglaterra para suportar peso morto sem se partir por semanas.',
         type: 'Ferramenta',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/utl_corda.png'
     },
 
     // --- CHAVES E DOCUMENTOS DE HISTÓRIA ---
@@ -229,7 +245,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         name: 'Chave Enferrujada: Quarto 204',
         description: 'Uma chave de hotel pesada de latão presa a uma tag de madeira entalhada "Hotel Gilman, Sala 204".',
         type: 'Chave',
-        quantity: 1
+        quantity: 1,
+        imageUrl: '/assets/items/doc_chave_sala_204.png'
     },
     {
         id: 'doc_mapa_arkham',

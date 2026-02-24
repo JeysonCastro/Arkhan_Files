@@ -84,5 +84,26 @@ export interface Investigator {
     // Weapons
     weapons: Weapon[];
 
+    // VTT Status Effects
+    isMajorWound?: boolean;
+    madnessState?: 'normal' | 'bout_of_madness' | 'underlying_insanity';
+
     avatar?: any; // Avatar Paperdoll config
+}
+
+export interface PinboardItem {
+    id: string;
+    session_id: string;
+    title: string;
+    content: string | null;
+    type: 'NOTE' | 'IMAGE' | 'DOCUMENT';
+    image_url: string | null;
+    position_x: number;
+    position_y: number;
+    z_index: number;
+    color: string;
+    rotation: number;
+    connections?: any;
+    created_at?: string;
+    updated_at?: string;
 }

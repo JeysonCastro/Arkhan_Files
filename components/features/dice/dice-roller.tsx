@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Dices, X, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedDice, DiceType } from "@/components/features/dice/animated-dice";
 
 interface RollResult {
     id: string;
@@ -17,6 +18,9 @@ export function DiceRoller() {
     const [history, setHistory] = useState<RollResult[]>([]);
     const [isRolling, setIsRolling] = useState(false);
     const [diceCount, setDiceCount] = useState(1);
+    const [bonusDice, setBonusDice] = useState(0); // For 7e bonus dice
+    const [penaltyDice, setPenaltyDice] = useState(0); // For 7e penalty dice
+    const [rollingDice, setRollingDice] = useState<{ id: string, type: DiceType, result: number | null }[]>([]);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Auto-scroll history container
@@ -41,27 +45,114 @@ export function DiceRoller() {
         setIsRolling(true);
         playDiceSound();
 
+        const typeStr = `d${sides}` as DiceType;
+
+        // Determine how many dice to animate
+        // If it's a d100 with bonus/penalty, we roll the base 100, plus extra tens (d10)
+        let totalDiceToAnimate = count;
+        if (sides === 100 && count === 1) {
+            totalDiceToAnimate = 1 + bonusDice + penaltyDice;
+        }
+
+        const newDiceState = Array.from({ length: totalDiceToAnimate }).map((_, i) => ({
+            id: `d_${i}_${Date.now()}`,
+            type: (sides === 100 && count === 1 && i > 0) ? 'd10' as DiceType : typeStr, // Extra dice are d10 tens
+            result: null as number | null
+        }));
+
+        setRollingDice(newDiceState);
+
         // Simulate roll delay for suspense
         setTimeout(() => {
-            let total = 0;
-            const rolls = [];
-            for (let i = 0; i < count; i++) {
-                const r = Math.floor(Math.random() * sides) + 1;
-                total += r;
-                rolls.push(r);
+            const rolls: number[] = [];
+
+            // Standard roll
+            if (sides !== 100 || count > 1 || (bonusDice === 0 && penaltyDice === 0)) {
+                let total = 0;
+                for (let i = 0; i < count; i++) {
+                    const r = Math.floor(Math.random() * sides) + 1;
+                    total += r;
+                    rolls.push(r);
+                    newDiceState[i].result = r;
+                }
+
+                setRollingDice([...newDiceState]);
+
+                const newRoll: RollResult = {
+                    id: Math.random().toString(36).substring(7),
+                    notation: `${count}d${sides}`,
+                    result: total,
+                    timestamp: new Date(),
+                    details: count > 1 ? `[${rolls.join(', ')}]` : undefined
+                };
+                setHistory(prev => [...prev, newRoll].slice(-15));
+            }
+            // Call of Cthulhu 7e Bonus/Penalty logic (applies to a single d100 roll)
+            else {
+                // Base roll
+                const units = Math.floor(Math.random() * 10); // 0-9
+                const baseTens = Math.floor(Math.random() * 10); // 0-9
+
+                let actualBase = baseTens * 10 + units;
+                if (actualBase === 0) actualBase = 100; // 00 is 100
+
+                newDiceState[0].result = actualBase;
+                rolls.push(actualBase);
+
+                const extraTens: number[] = [];
+                const totalExtras = bonusDice + penaltyDice;
+
+                for (let i = 0; i < totalExtras; i++) {
+                    const extraTen = Math.floor(Math.random() * 10); // 0-9
+                    extraTens.push(extraTen);
+                    // Value for animation (displaying the tens digit)
+                    newDiceState[i + 1].result = extraTen * 10;
+                }
+
+                setRollingDice([...newDiceState]);
+
+                let finalResult = actualBase;
+                let detailsStr = `Base: ${actualBase}`;
+
+                if (totalExtras > 0) {
+                    // The tens digit of the base roll (0-9, where 100's tens is 0)
+                    const baseTensDigit = Math.floor(actualBase / 10) === 10 ? 0 : Math.floor(actualBase / 10);
+                    const allTens = [baseTensDigit, ...extraTens];
+
+                    if (bonusDice > 0) {
+                        // Taking the lowest tens digit
+                        const bestTenDigit = Math.min(...allTens);
+                        finalResult = bestTenDigit * 10 + units;
+                        if (bestTenDigit === 0 && units === 0) finalResult = 100; // 00 is 100
+                        detailsStr = `Base: ${actualBase}, Bonus Tens: [${extraTens.map(t => t * 10).join(', ')}] -> ${finalResult}`;
+                    } else if (penaltyDice > 0) {
+                        // Taking the highest tens digit
+                        const worstTenDigit = Math.max(...allTens);
+                        finalResult = worstTenDigit * 10 + units;
+                        if (worstTenDigit === 0 && units === 0) finalResult = 100; // 00 is 100
+                        detailsStr = `Base: ${actualBase}, Penalty Tens: [${extraTens.map(t => t * 10).join(', ')}] -> ${finalResult}`;
+                    }
+                }
+
+                const newRoll: RollResult = {
+                    id: Math.random().toString(36).substring(7),
+                    notation: bonusDice > 0 ? `d100 (+${bonusDice}B)` : (penaltyDice > 0 ? `d100 (-${penaltyDice}P)` : `d100`),
+                    result: finalResult,
+                    timestamp: new Date(),
+                    details: detailsStr
+                };
+                setHistory(prev => [...prev, newRoll].slice(-15));
+
+                // Reset bonus/penalty after rolling
+                setBonusDice(0);
+                setPenaltyDice(0);
             }
 
-            const newRoll: RollResult = {
-                id: Math.random().toString(36).substring(7),
-                notation: `${count}d${sides}`,
-                result: total,
-                timestamp: new Date(),
-                details: count > 1 ? `[${rolls.join(', ')}]` : undefined
-            };
+            setTimeout(() => {
+                setIsRolling(false);
+            }, 1000);
 
-            setHistory(prev => [...prev, newRoll].slice(-15)); // Keep last 15 rolls
-            setIsRolling(false);
-        }, 600);
+        }, 1500); // Increased suspense time for the animation
     };
 
     const calculateDegreeOfSuccess = (roll: number, target: number) => {
@@ -104,33 +195,56 @@ export function DiceRoller() {
                     </div>
 
                     {/* Settings / Quantity */}
-                    <div className="px-4 pt-3 flex items-center justify-between border-b border-[var(--color-mythos-gold-dim)]/20 pb-2">
-                        <span className="text-xs font-bold text-[var(--color-mythos-gold-dim)] tracking-widest uppercase">Quantidade de Dados:</span>
-                        <div className="flex items-center">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6 rounded-r-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
-                                onClick={() => setDiceCount(Math.max(1, diceCount - 1))}
-                            >
-                                -
-                            </Button>
-                            <input
-                                type="number"
-                                min={1}
-                                max={20}
-                                value={diceCount}
-                                onChange={(e) => setDiceCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="h-6 w-12 text-center text-xs font-bold bg-black text-[var(--color-mythos-parchment)] border-y border-[var(--color-mythos-gold-dim)]/50 focus:outline-none"
-                            />
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6 rounded-l-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
-                                onClick={() => setDiceCount(Math.min(20, diceCount + 1))}
-                            >
-                                +
-                            </Button>
+                    <div className="px-4 pt-3 pb-2 flex flex-col gap-3 border-b border-[var(--color-mythos-gold-dim)]/20">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[var(--color-mythos-gold-dim)] tracking-widest uppercase">Qtd de Dados:</span>
+                            <div className="flex items-center">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6 rounded-r-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
+                                    onClick={() => setDiceCount(Math.max(1, diceCount - 1))}
+                                >
+                                    -
+                                </Button>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={diceCount}
+                                    onChange={(e) => setDiceCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="h-6 w-12 text-center text-xs font-bold bg-black text-[var(--color-mythos-parchment)] border-y border-[var(--color-mythos-gold-dim)]/50 focus:outline-none"
+                                />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6 rounded-l-none border-[var(--color-mythos-gold-dim)]/50 bg-black text-[var(--color-mythos-parchment)]"
+                                    onClick={() => setDiceCount(Math.min(20, diceCount + 1))}
+                                >
+                                    +
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* CoC 7e specific: Bonus / Penalty (Only truly applies to 1d100) */}
+                        <div className={`flex items-center justify-between transition-opacity ${diceCount > 1 ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                            <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase truncate max-w-[100px]">Dados Extras (d100):</span>
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-green-950/30 rounded border border-green-900/50">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-green-500 hover:text-green-400 hover:bg-green-900/50"
+                                        onClick={() => { setBonusDice(Math.max(0, bonusDice - 1)); if (penaltyDice > 0) setPenaltyDice(0); }}>-</Button>
+                                    <span className="text-xs font-bold px-1 text-green-500 w-8 text-center">{bonusDice} B</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-green-500 hover:text-green-400 hover:bg-green-900/50"
+                                        onClick={() => { setBonusDice(Math.min(2, bonusDice + 1)); setPenaltyDice(0); }}>+</Button>
+                                </div>
+                                <div className="flex items-center bg-red-950/30 rounded border border-red-900/50">
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-red-900/50"
+                                        onClick={() => { setPenaltyDice(Math.max(0, penaltyDice - 1)); if (bonusDice > 0) setBonusDice(0); }}>-</Button>
+                                    <span className="text-xs font-bold px-1 text-red-500 w-8 text-center">{penaltyDice} P</span>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-red-900/50"
+                                        onClick={() => { setPenaltyDice(Math.min(2, penaltyDice + 1)); setBonusDice(0); }}>+</Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -181,6 +295,21 @@ export function DiceRoller() {
                             <div className="text-[var(--color-mythos-gold)] text-center animate-pulse py-2">Rolando os ossos...</div>
                         )}
                     </div>
+
+                    {/* Visual Dice Overlay inside the panel */}
+                    {rollingDice.length > 0 && (
+                        <div className="absolute top-0 left-0 w-full h-[50%] flex-wrap flex items-center justify-center p-4 pointer-events-none z-20 gap-2 bg-black/60 backdrop-blur-sm">
+                            {rollingDice.map(d => (
+                                <AnimatedDice
+                                    key={d.id}
+                                    type={d.type}
+                                    isRolling={d.result === null}
+                                    value={d.result}
+                                    size="md"
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </>

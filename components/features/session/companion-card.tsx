@@ -56,9 +56,25 @@ export function CompanionCard({ companion }: CompanionCardProps) {
             const newData = { ...currentInv.data };
             if (!newData.derivedStats) newData.derivedStats = {};
 
+            const oldHp = newData.derivedStats.hp?.current || companion.hp.current;
+            const oldSanity = newData.derivedStats.sanity?.current || companion.sanity.current;
+            const maxHp = companion.hp.max || 1;
+
             if (newData.derivedStats.hp) newData.derivedStats.hp.current = localHp;
             if (newData.derivedStats.sanity) newData.derivedStats.sanity.current = localSanity;
             if (newData.derivedStats.magicPoints) newData.derivedStats.magicPoints.current = localMp;
+
+            // Major Wound Logic (>= 50% max HP in one instance)
+            if (oldHp - localHp >= maxHp / 2) {
+                newData.isMajorWound = true;
+            } else if (localHp >= maxHp) {
+                newData.isMajorWound = false; // Reset if fully healed
+            }
+
+            // Madness Logic (>= 5 Sanity in one instance)
+            if (oldSanity - localSanity >= 5) {
+                newData.madnessState = 'bout_of_madness';
+            }
 
             await supabase
                 .from('investigators')
@@ -113,13 +129,17 @@ export function CompanionCard({ companion }: CompanionCardProps) {
     const sanityPercent = Math.max(0, Math.min(100, (localSanity / companion.sanity.max) * 100));
     const mpPercent = Math.max(0, Math.min(100, (localMp / companion.mp.max) * 100));
 
+    // Visual States
+    const isMajorWound = companion.isMajorWound;
+    const isMad = companion.madnessState === 'bout_of_madness' || companion.madnessState === 'underlying_insanity';
+
     return (
         <>
             <div
-                className={`relative flex flex-col md:flex-row items-center md:items-start transition-all duration-300 ${isCurrentUser ? 'scale-[1.02]' : 'opacity-90 grayscale-[0.2]'}`}
+                className={`relative flex flex-col md:flex-row items-center md:items-start transition-all duration-300 ${isCurrentUser ? 'scale-[1.02]' : 'opacity-90 grayscale-[0.2]'} ${isMad ? 'animate-pulse' : ''}`}
             >
                 {/* 1. Foto Estilo Polaroid / Vintage */}
-                <div className={`relative shrink-0 rotate-[-2deg] bg-[#e8e6df] p-2 pb-6 md:p-3 md:pb-8 shadow-xl z-20 w-32 md:w-40 border border-[#c4c1b5] transition-transform ${isCurrentUser ? 'hover:scale-105 hover:rotate-0 ring-2 ring-[var(--color-mythos-gold)] ring-offset-4 ring-offset-[#050a05]' : 'ring-1 ring-black/20'}`}>
+                <div className={`relative shrink-0 rotate-[-2deg] bg-[#e8e6df] p-2 pb-6 md:p-3 md:pb-8 shadow-xl z-20 w-32 md:w-40 border border-[#c4c1b5] transition-transform ${isCurrentUser ? 'hover:scale-105 hover:rotate-0 ring-2 ring-[var(--color-mythos-gold)] ring-offset-4 ring-offset-[#050a05]' : 'ring-1 ring-black/20'} ${isMajorWound ? 'ring-4 ring-[var(--color-mythos-blood)]' : ''} ${isMad ? 'ring-4 ring-[#8822aa]' : ''}`}>
 
                     {/* Pedacinho de fita crepe no topo */}
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-[#dcd9cd] opacity-90 rotate-[3deg] shadow-sm z-30 border-t border-b border-black/5" style={{ clipPath: 'polygon(5% 0%, 95% 5%, 100% 95%, 0% 100%)' }}></div>
@@ -148,6 +168,11 @@ export function CompanionCard({ companion }: CompanionCardProps) {
 
                         {/* Filtro sépia / vintage sutil por cima da foto */}
                         <div className="absolute inset-0 bg-[#8c734b] mix-blend-color opacity-20 pointer-events-none" />
+
+                        {/* Status overlays */}
+                        {isMajorWound && <div className="absolute inset-0 bg-red-900 mix-blend-multiply opacity-50 pointer-events-none" />}
+                        {isMad && <div className="absolute inset-0 bg-purple-900 mix-blend-overlay opacity-50 backdrop-contrast-150 pointer-events-none" />}
+
                         <div className="absolute inset-0 shadow-[inset_0_0_15px_rgba(0,0,0,0.4)] pointer-events-none" />
 
                         {/* Ver Ficha Button for player */}

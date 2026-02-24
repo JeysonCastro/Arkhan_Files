@@ -87,6 +87,8 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
                                 derived={investigator.derivedStats}
                                 onChange={onAttributeChange}
                                 isReadOnly={isReadOnly}
+                                isMajorWound={investigator.isMajorWound}
+                                madnessState={investigator.madnessState}
                             />
 
                             <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />

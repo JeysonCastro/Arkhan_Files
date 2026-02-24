@@ -7,6 +7,8 @@ interface Props {
     derived: Investigator['derivedStats'];
     onChange: (attr: AttributeName, value: number) => void;
     isReadOnly?: boolean;
+    isMajorWound?: boolean;
+    madnessState?: 'normal' | 'bout_of_madness' | 'underlying_insanity';
 }
 
 const ATTRIBUTE_LIST: AttributeName[] = ['STR', 'CON', 'SIZ', 'DEX', 'APP', 'INT', 'POW', 'EDU'];
@@ -16,7 +18,7 @@ const ATTRIBUTE_LABELS: Record<string, string> = {
     APP: 'APA', INT: 'INT', POW: 'POD', EDU: 'EDU'
 };
 
-export default function CharacterSheetAttributes({ attributes, derived, onChange, isReadOnly }: Props) {
+export default function CharacterSheetAttributes({ attributes, derived, onChange, isReadOnly, isMajorWound, madnessState }: Props) {
     // Helper to render the small 1/2 and 1/5 boxes
     const renderFractions = (val: number) => (
         <div className="flex flex-col text-[0.6rem] leading-none absolute -right-4 top-1 gap-1">
@@ -65,8 +67,10 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                 <div className="lg:col-span-7 grid grid-cols-2 gap-4">
 
                     {/* PV - Layout Clássico */}
-                    <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/30 relative">
-                        <Label className="absolute -top-3 left-2 bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] px-2 text-xs font-bold uppercase text-[var(--color-mythos-gold)]">Pontos de Vida</Label>
+                    <div className={`border p-2 relative ${isMajorWound ? 'border-[var(--color-mythos-blood)] bg-red-950/40 animate-pulse' : 'border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)]/30'}`}>
+                        <Label className={`absolute -top-3 left-2 px-2 text-xs font-bold uppercase ${isMajorWound ? 'bg-red-900 border border-[var(--color-mythos-blood)] text-white' : 'bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]'}`}>
+                            {isMajorWound ? 'Ferimento Maior (PV)' : 'Pontos de Vida'}
+                        </Label>
                         <div className="flex justify-between items-center mb-1 text-[var(--color-mythos-parchment)]">
                             <span className="text-xs">Máximo: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.hp?.max || 0}</span></span>
                             <div className="flex items-center gap-2">
@@ -83,13 +87,15 @@ export default function CharacterSheetAttributes({ attributes, derived, onChange
                     </div>
 
                     {/* SANIDADE - Layout Clássico */}
-                    <div className="border border-[var(--color-mythos-gold-dim)] p-2 bg-[var(--color-mythos-black)]/30 relative">
-                        <Label className="absolute -top-3 left-2 bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] px-2 text-xs font-bold uppercase text-[var(--color-mythos-gold)]">Sanidade</Label>
+                    <div className={`border p-2 relative ${madnessState && madnessState !== 'normal' ? 'border-purple-600 bg-purple-950/30' : 'border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)]/30'} ${madnessState === 'bout_of_madness' ? 'animate-pulse' : ''}`}>
+                        <Label className={`absolute -top-3 left-2 px-2 text-xs font-bold uppercase ${madnessState && madnessState !== 'normal' ? 'bg-purple-900 border border-purple-500 text-white' : 'bg-[var(--color-mythos-dark-green)] border border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]'}`}>
+                            {madnessState === 'bout_of_madness' ? 'Surto de Loucura' : madnessState === 'underlying_insanity' ? 'Loucura Inerente' : 'Sanidade'}
+                        </Label>
                         <div className="flex justify-between items-center mb-1 text-[var(--color-mythos-parchment)]">
                             <span className="text-xs">Inicial: <span className="font-bold border-b border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)]">{derived?.sanity?.start || 0}</span></span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--color-mythos-gold)]">Atual:</span>
-                                <Input className="h-6 w-12 text-center text-sm border border-[var(--color-mythos-gold-dim)] bg-[var(--color-mythos-black)] text-[var(--color-mythos-sanity)] font-bold p-0" value={derived?.sanity?.current || 0} readOnly />
+                                <Input className={`h-6 w-12 text-center text-sm border bg-[var(--color-mythos-black)] font-bold p-0 ${madnessState && madnessState !== 'normal' ? 'border-purple-500 text-[#eeaaff]' : 'border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-sanity)]'}`} value={derived?.sanity?.current || 0} readOnly />
                             </div>
                         </div>
                         <div className="grid grid-cols-10 gap-px text-[0.55rem] text-center opacity-80">
