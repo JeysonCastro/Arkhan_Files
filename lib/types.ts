@@ -108,3 +108,18 @@ export interface PinboardItem {
     created_at?: string;
     updated_at?: string;
 }
+
+export interface Session {
+    id: string;
+    keeper_id: string;
+    name: string;
+    invite_code: string;
+    is_active: boolean;
+    created_at: string;
+
+    // Immersive & Cinematic Features
+    ambient_audio?: string;
+    visual_theme?: string;
+    scene_mode?: 'EXPLORATION' | 'CINEMATIC';
+}
+

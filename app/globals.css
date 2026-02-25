@@ -193,3 +193,103 @@ h6 {
 .animate-fog-slow {
   animation: fog-flow-slow 120s linear infinite;
 }
+
+/* -----------------------------------------
+   [SANITY EFFECTS] PSYCHOLOGICAL HORROR GLITCHES
+   ----------------------------------------- */
+
+@keyframes glitch-anim-mild {
+  0% {
+    transform: translate(0);
+    text-shadow: 1px 0px 0px rgba(200, 50, 50, 0.4), -1px 0px 0px rgba(50, 200, 50, 0.4);
+  }
+
+  2% {
+    transform: translate(1px, -1px);
+    text-shadow: -2px 0px 0px rgba(200, 50, 50, 0.5), 1px 0px 0px rgba(50, 200, 50, 0.5);
+  }
+
+  4% {
+    transform: translate(-1px, 1px);
+    text-shadow: 1px 0px 0px rgba(200, 50, 50, 0.4), -1px 0px 0px rgba(50, 200, 50, 0.4);
+  }
+
+  6% {
+    transform: translate(0);
+    filter: blur(0px);
+  }
+
+  98% {
+    transform: translate(0);
+    filter: blur(0px);
+  }
+
+  99% {
+    filter: blur(1px);
+  }
+
+  100% {
+    transform: translate(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes glitch-anim-severe {
+  0% {
+    transform: translate(0);
+    text-shadow: 3px 0px 0px rgba(255, 0, 0, 0.8), -3px 0px 0px rgba(0, 0, 255, 0.8);
+    filter: hue-rotate(0deg);
+  }
+
+  2% {
+    transform: translate(2px, -3px) skewX(2deg);
+    text-shadow: -4px 0px 0px rgba(255, 0, 0, 0.8), 2px 0px 0px rgba(0, 0, 255, 0.8);
+    filter: hue-rotate(90deg);
+  }
+
+  4% {
+    transform: translate(-3px, 2px) skewX(-2deg);
+    text-shadow: 3px 0px 0px rgba(255, 0, 0, 0.8), -2px 0px 0px rgba(0, 0, 255, 0.8);
+    filter: blur(1px);
+  }
+
+  6% {
+    transform: translate(0) skewX(0);
+    filter: hue-rotate(0deg) blur(0px);
+  }
+
+  15% {
+    transform: translate(1px, 1px);
+  }
+
+  16% {
+    transform: translate(0);
+  }
+
+  50% {
+    transform: translate(0);
+  }
+
+  51% {
+    opacity: 0.8;
+  }
+
+  52% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(0);
+  }
+}
+
+.sanity-glitch-mild {
+  animation: glitch-anim-mild 5s infinite;
+  display: inline-block;
+}
+
+.sanity-glitch-severe {
+  animation: glitch-anim-severe 3s infinite;
+  display: inline-block;
+  mix-blend-mode: hard-light;
+}

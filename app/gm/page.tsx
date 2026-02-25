@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { MASTER_ITEMS_DB } from "@/lib/items-db";
 import { EquipmentItem } from "@/lib/types";
+import { AUDIO_TRACKS } from "@/components/features/session/audio-player";
 
 export default function GMPage() {
     const [investigators, setInvestigators] = useState<any[]>([]);
@@ -33,6 +34,8 @@ export default function GMPage() {
 
     // Global Environment State (Lights Out)
     const [isLightsOut, setIsLightsOut] = useState(false);
+    const [ambientAudio, setAmbientAudio] = useState('none');
+    const [sceneMode, setSceneMode] = useState<'EXPLORATION' | 'CINEMATIC'>('EXPLORATION');
 
     // Roll Requests
     const [activeRolls, setActiveRolls] = useState<any[]>([]);
@@ -201,6 +204,8 @@ export default function GMPage() {
                 const currentSession = data?.find(s => s.id === selectedSessionId);
                 if (currentSession) {
                     setIsLightsOut(currentSession.is_lights_out || false);
+                    setAmbientAudio(currentSession.ambient_audio || 'none');
+                    setSceneMode(currentSession.scene_mode || 'EXPLORATION');
                 }
             }
         } catch (err) {
@@ -247,8 +252,12 @@ export default function GMPage() {
         const session = sessions.find(s => s.id === sessionId);
         if (session) {
             setIsLightsOut(session.is_lights_out || false);
+            setAmbientAudio(session.ambient_audio || 'none');
+            setSceneMode(session.scene_mode || 'EXPLORATION');
         } else {
             setIsLightsOut(false);
+            setAmbientAudio('none');
+            setSceneMode('EXPLORATION');
         }
     };
 
@@ -327,6 +336,39 @@ export default function GMPage() {
         } catch (err) {
             console.error("Erro ao alterar iluminação:", err);
             alert("Erro ao alterar a iluminação global da sessão.");
+        }
+    };
+
+    const toggleSceneMode = async () => {
+        if (!selectedSessionId || selectedSessionId === 'ALL') return;
+        try {
+            const newState = sceneMode === 'EXPLORATION' ? 'CINEMATIC' : 'EXPLORATION';
+            const { error } = await supabase
+                .from('sessions')
+                .update({ scene_mode: newState })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setSceneMode(newState);
+        } catch (err) {
+            console.error("Erro ao alterar modo de cena:", err);
+            alert("Erro ao alterar o modo de cena.");
+        }
+    };
+
+    const changeAmbientAudio = async (track: string) => {
+        if (!selectedSessionId || selectedSessionId === 'ALL') return;
+        try {
+            const { error } = await supabase
+                .from('sessions')
+                .update({ ambient_audio: track })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setAmbientAudio(track);
+        } catch (err) {
+            console.error("Erro ao alterar áudio:", err);
+            alert("Erro ao alterar o áudio ambiente.");
         }
     };
 
@@ -519,6 +561,14 @@ export default function GMPage() {
                             title={isLightsOut ? "Acender Luzes" : "Apagar Luzes (Pitch Black)"}
                         >
                             {isLightsOut ? "LUZ!" : "Apagar Luzes"}
+                        </Button>
+                        <Button
+                            onClick={toggleSceneMode}
+                            disabled={selectedSessionId === 'ALL'}
+                            className={`border transition-colors whitespace-nowrap flex-1 lg:flex-none justify-center font-serif tracking-widest ${sceneMode === 'CINEMATIC' ? 'bg-[var(--color-mythos-blood)] border-red-500 hover:bg-red-800 text-white shadow-[0_0_15px_rgba(200,0,0,0.5)]' : 'bg-black/40 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                            title="Desligar HUD e focar narrativa"
+                        >
+                            {sceneMode === 'CINEMATIC' ? "VOLTAR HUD" : "MODO CENA"}
                         </Button>
                         <Button
                             onClick={() => setShowPinboard(true)}
@@ -1083,6 +1133,22 @@ export default function GMPage() {
                                 </Button>
                             ))}
                         </div>
+
+                        <div className="mt-8 border-t border-[var(--color-mythos-gold-dim)]/30 pt-4">
+                            <h4 className="text-xs font-heading text-[var(--color-mythos-gold-dim)] tracking-widest uppercase mb-4">Trilha Sonora Ambiental (Loop Contínuo)</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                {Object.keys(AUDIO_TRACKS).map((track) => (
+                                    <Button
+                                        key={track}
+                                        onClick={() => changeAmbientAudio(track)}
+                                        className={`h-12 border transition-all ${ambientAudio === track ? 'bg-[var(--color-mythos-blood)] border-red-500 text-white' : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/30 text-stone-400 hover:text-[var(--color-mythos-gold)]'}`}
+                                    >
+                                        <span className="text-[10px] uppercase font-serif tracking-widest truncate max-w-full px-1">{track}</span>
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             )}

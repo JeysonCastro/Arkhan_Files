@@ -14,6 +14,9 @@ import { CompanionCard } from "@/components/features/session/companion-card";
 import { Pinboard } from "@/components/features/session/pinboard";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Crosshair } from "lucide-react";
+import { SessionAudioPlayer } from "@/components/features/session/audio-player";
+import { CinematicOverlay } from "@/components/features/session/cinematic-overlay";
+import { SanityEffectProvider } from "@/components/features/session/sanity-effect-provider";
 
 export default function PlayerSessionView() {
     const params = useParams();
@@ -60,7 +63,7 @@ export default function PlayerSessionView() {
             // 1. Fetch Session Info
             const { data: sessionInfo, error: sessionError } = await supabase
                 .from('sessions')
-                .select('name, is_active, is_lights_out')
+                .select('name, is_active, is_lights_out, ambient_audio, scene_mode')
                 .eq('id', sessionId)
                 .single();
 
@@ -192,7 +195,9 @@ export default function PlayerSessionView() {
             }, (payload) => {
                 setSessionData((prev: any) => prev ? {
                     ...prev,
-                    is_lights_out: payload.new.is_lights_out
+                    is_lights_out: payload.new.is_lights_out,
+                    ambient_audio: payload.new.ambient_audio,
+                    scene_mode: payload.new.scene_mode
                 } : prev);
             })
             .on('broadcast', { event: 'play_sound' }, (payload) => {
@@ -318,6 +323,10 @@ export default function PlayerSessionView() {
             {/* Table Edge Lighting / Vignette */}
             <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] pointer-events-none z-0" />
 
+            {/* Immersive Audio & Video */}
+            <SessionAudioPlayer trackKey={sessionData?.ambient_audio || 'none'} />
+            <CinematicOverlay isActive={sessionData?.scene_mode === 'CINEMATIC'} />
+
             {/* Real-time Dice Systems */}
             <DiceRoller />
             {currentUserInvestigator && (
@@ -329,7 +338,7 @@ export default function PlayerSessionView() {
                 />
             )}
 
-            <div className="max-w-7xl mx-auto space-y-4 relative z-10 flex flex-col min-h-[85vh]">
+            <div className={`max-w-7xl mx-auto space-y-4 relative z-10 flex flex-col min-h-[85vh] transition-opacity duration-1000 ${sessionData?.scene_mode === 'CINEMATIC' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 {/* Header (Top Left/Right HUD) */}
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-[var(--color-mythos-gold-dim)]/10 pb-4">
                     <div className="flex items-center gap-4">
@@ -364,107 +373,113 @@ export default function PlayerSessionView() {
                     </div>
                 </div>
 
-                {/* The "Table" Area */}
-                <div className="flex-1 flex flex-col justify-between py-8">
+                {/* Sanity Effect Wrapper para o restante da UI */}
+                <SanityEffectProvider
+                    currentSanity={currentUserInvestigator?.sanity?.current || 50}
+                    startSanity={currentUserInvestigator?.sanity?.start || currentUserInvestigator?.sanity?.max || 50}
+                >
+                    {/* The "Table" Area */}
+                    <div className="flex-1 flex flex-col justify-between py-8">
 
-                    {/* Head of the Table: Game Master */}
-                    <div className="flex justify-center mb-12">
-                        <div className="bg-gradient-to-b from-black/80 to-transparent border-t-4 border-[var(--color-mythos-blood)] p-6 rounded-b-3xl flex flex-col items-center">
-                            <Skull className="w-10 h-10 text-[var(--color-mythos-blood)] mb-2 drop-shadow-[0_0_15px_rgba(124,22,22,0.8)]" />
-                            <p className="font-heading uppercase tracking-widest text-[var(--color-mythos-blood)]/80 text-xs">O Guardião</p>
-                        </div>
-                    </div>
-
-                    {/* Middle of the Table: Other Players (Flanks) */}
-                    <div className="flex-1 flex justify-between items-center px-2 md:px-12 pointer-events-none">
-
-                        {/* Left Flank */}
-                        <div className="flex flex-col gap-16 pointer-events-auto">
-                            {otherCompanions.filter((_, i) => i % 2 === 0).map(companion => (
-                                <div key={companion.id} className="rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-left shadow-2xl">
-                                    <CompanionCard companion={companion} />
-                                </div>
-                            ))}
+                        {/* Head of the Table: Game Master */}
+                        <div className="flex justify-center mb-12">
+                            <div className="bg-gradient-to-b from-black/80 to-transparent border-t-4 border-[var(--color-mythos-blood)] p-6 rounded-b-3xl flex flex-col items-center">
+                                <Skull className="w-10 h-10 text-[var(--color-mythos-blood)] mb-2 drop-shadow-[0_0_15px_rgba(124,22,22,0.8)]" />
+                                <p className="font-heading uppercase tracking-widest text-[var(--color-mythos-blood)]/80 text-xs">O Guardião</p>
+                            </div>
                         </div>
 
-                        {/* Center Table Atmosphere (Lamp light / Table Props) */}
-                        <div className="hidden lg:flex flex-col items-center justify-center pointer-events-none relative w-full max-w-sm">
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--color-mythos-gold)]/5 rounded-full blur-[100px] mix-blend-screen" />
+                        {/* Middle of the Table: Other Players (Flanks) */}
+                        <div className="flex-1 flex justify-between items-center px-2 md:px-12 pointer-events-none">
+
+                            {/* Left Flank */}
+                            <div className="flex flex-col gap-16 pointer-events-auto">
+                                {otherCompanions.filter((_, i) => i % 2 === 0).map(companion => (
+                                    <div key={companion.id} className="rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-left shadow-2xl">
+                                        <CompanionCard companion={companion} />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Center Table Atmosphere (Lamp light / Table Props) */}
+                            <div className="hidden lg:flex flex-col items-center justify-center pointer-events-none relative w-full max-w-sm">
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[var(--color-mythos-gold)]/5 rounded-full blur-[100px] mix-blend-screen" />
+                            </div>
+
+                            {/* Right Flank */}
+                            <div className="flex flex-col gap-16 pointer-events-auto items-end">
+                                {otherCompanions.filter((_, i) => i % 2 !== 0).map(companion => (
+                                    <div key={companion.id} className="-rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-right shadow-2xl">
+                                        <CompanionCard companion={companion} />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Right Flank */}
-                        <div className="flex flex-col gap-16 pointer-events-auto items-end">
-                            {otherCompanions.filter((_, i) => i % 2 !== 0).map(companion => (
-                                <div key={companion.id} className="-rotate-[4deg] hover:rotate-0 hover:scale-105 hover:z-50 transition-all duration-500 origin-right shadow-2xl">
-                                    <CompanionCard companion={companion} />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Foot of the Table: Current User (Bottom Center) */}
-                    <div className="flex flex-col items-center justify-center mt-12 group perspective-1000">
-                        {currentUserInvestigator ? (
-                            <>
-                                {/* Floating Mochila Button */}
-                                <Button
-                                    variant="mythos"
-                                    onClick={() => setShowInventory(true)}
-                                    className="mb-8 z-50 bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)] shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-serif uppercase tracking-widest gap-2 hover:bg-[#3a2517] hover:scale-105 transition-all w-48 mx-auto"
-                                >
-                                    <Briefcase className="w-5 h-5 text-[var(--color-mythos-gold)]" />
-                                    Abrir Mochila
-                                    {currentUserInvestigator.inventory?.length > 0 && (
-                                        <span className="bg-[var(--color-mythos-blood)] text-white text-xs px-2 py-0.5 rounded-full ml-1 font-sans font-bold">
-                                            {currentUserInvestigator.inventory.length}
-                                        </span>
-                                    )}
-                                </Button>
-
-                                {/* Botões de Ação Rápida (Combate e Exploração) */}
-                                <div className="flex gap-2 mb-8 z-50 -mt-6">
+                        {/* Foot of the Table: Current User (Bottom Center) */}
+                        <div className="flex flex-col items-center justify-center mt-12 group perspective-1000">
+                            {currentUserInvestigator ? (
+                                <>
+                                    {/* Floating Mochila Button */}
                                     <Button
-                                        variant="outline"
-                                        onClick={handleToggleFirearm}
-                                        className={`border shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-sans uppercase tracking-widest gap-2 hover:scale-105 transition-all text-xs w-48
-                                            ${currentUserInvestigator.isFirearmReady
-                                                ? 'bg-blue-900 border-blue-500 text-blue-100 font-bold shadow-[0_0_15px_rgba(59,130,246,0.6)]'
-                                                : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                                        variant="mythos"
+                                        onClick={() => setShowInventory(true)}
+                                        className="mb-8 z-50 bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)] shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-serif uppercase tracking-widest gap-2 hover:bg-[#3a2517] hover:scale-105 transition-all w-48 mx-auto"
                                     >
-                                        <Crosshair className="w-4 h-4" />
-                                        {currentUserInvestigator.isFirearmReady ? 'Arma em Punho!' : 'Empunhar Arma'}
+                                        <Briefcase className="w-5 h-5 text-[var(--color-mythos-gold)]" />
+                                        Abrir Mochila
+                                        {currentUserInvestigator.inventory?.length > 0 && (
+                                            <span className="bg-[var(--color-mythos-blood)] text-white text-xs px-2 py-0.5 rounded-full ml-1 font-sans font-bold">
+                                                {currentUserInvestigator.inventory.length}
+                                            </span>
+                                        )}
                                     </Button>
 
-                                    {/* Lanterna Fog of War Toggle */}
-                                    {hasLightSource && (
+                                    {/* Botões de Ação Rápida (Combate e Exploração) */}
+                                    <div className="flex gap-2 mb-8 z-50 -mt-6">
                                         <Button
                                             variant="outline"
-                                            onClick={() => setIsFlashlightOn(!isFlashlightOn)}
+                                            onClick={handleToggleFirearm}
                                             className={`border shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-sans uppercase tracking-widest gap-2 hover:scale-105 transition-all text-xs w-48
-                                                ${isFlashlightOn
-                                                    ? 'bg-[var(--color-mythos-gold)]/20 border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-bold shadow-[0_0_15px_rgba(200,160,80,0.4)]'
+                                            ${currentUserInvestigator.isFirearmReady
+                                                    ? 'bg-blue-900 border-blue-500 text-blue-100 font-bold shadow-[0_0_15px_rgba(59,130,246,0.6)]'
                                                     : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
                                         >
-                                            <Zap className="w-4 h-4" />
-                                            {isFlashlightOn ? 'Apagar Luz' : 'Acender Lanterna'}
+                                            <Crosshair className="w-4 h-4" />
+                                            {currentUserInvestigator.isFirearmReady ? 'Arma em Punho!' : 'Empunhar Arma'}
                                         </Button>
-                                    )}
-                                </div>
 
-                                <div className="transform translate-y-4 hover:-translate-y-2 hover:scale-110 transition-all duration-500 z-50">
-                                    {/* Subtle spotlight on the user */}
-                                    <div className="absolute -inset-10 bg-[var(--color-mythos-gold)]/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                                    <CompanionCard companion={currentUserInvestigator} />
+                                        {/* Lanterna Fog of War Toggle */}
+                                        {hasLightSource && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setIsFlashlightOn(!isFlashlightOn)}
+                                                className={`border shadow-[0_5px_15px_rgba(0,0,0,0.8)] font-sans uppercase tracking-widest gap-2 hover:scale-105 transition-all text-xs w-48
+                                                ${isFlashlightOn
+                                                        ? 'bg-[var(--color-mythos-gold)]/20 border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-bold shadow-[0_0_15px_rgba(200,160,80,0.4)]'
+                                                        : 'bg-black/60 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                                            >
+                                                <Zap className="w-4 h-4" />
+                                                {isFlashlightOn ? 'Apagar Luz' : 'Acender Lanterna'}
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    <div className="transform translate-y-4 hover:-translate-y-2 hover:scale-110 transition-all duration-500 z-50">
+                                        {/* Subtle spotlight on the user */}
+                                        <div className="absolute -inset-10 bg-[var(--color-mythos-gold)]/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                                        <CompanionCard companion={currentUserInvestigator} />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-[var(--color-mythos-gold-dim)] italic border border-dashed border-[var(--color-mythos-gold-dim)]/30 rounded p-8">
+                                    Você não possui investigador nesta mesa.
                                 </div>
-                            </>
-                        ) : (
-                            <div className="text-[var(--color-mythos-gold-dim)] italic border border-dashed border-[var(--color-mythos-gold-dim)]/30 rounded p-8">
-                                Você não possui investigador nesta mesa.
-                            </div>
-                        )}
+                            )}
+                        </div>
+
                     </div>
-
-                </div>
+                </SanityEffectProvider>
             </div>
             {/* Player Backpack Modal (Rendered outside table layout to prevent scaling/transform bugs) */}
             {mounted && showInventory && currentUserInvestigator && createPortal(
@@ -531,11 +546,16 @@ export default function PlayerSessionView() {
 
             {/* Fullscreen Pinboard Modal */}
             {mounted && showPinboard && createPortal(
-                <Pinboard
-                    sessionId={params.id as string}
-                    onClose={() => setShowPinboard(false)}
-                    isGM={false}
-                />,
+                <SanityEffectProvider
+                    currentSanity={currentUserInvestigator?.sanity?.current || 50}
+                    startSanity={currentUserInvestigator?.sanity?.start || currentUserInvestigator?.sanity?.max || 50}
+                >
+                    <Pinboard
+                        sessionId={params.id as string}
+                        onClose={() => setShowPinboard(false)}
+                        isGM={false}
+                    />
+                </SanityEffectProvider>,
                 document.body
             )}
 
