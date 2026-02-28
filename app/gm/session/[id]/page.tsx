@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { MOCK_INVESTIGATORS } from "@/lib/mock-data";
@@ -60,6 +60,9 @@ export default function GMSessionPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [customItems, setCustomItems] = useState<any[]>([]);
 
+    // Persistent Broadcast Channel Ref
+    const broadcastChannelRef = useRef<any>(null);
+
     // State for the selected investigator (modal)
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -77,44 +80,113 @@ export default function GMSessionPage() {
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
+    // Data Fetchers
+    const fetchCustomItems = async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from('custom_items')
+            .select('*')
+            .eq('keeper_id', user.id)
+            .order('created_at', { ascending: false });
+        if (data) setCustomItems(data);
+    };
+
+    const fetchSessionData = async () => {
+        if (!selectedSessionId) return;
+        try {
+            const { data, error } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq('id', selectedSessionId)
+                .single();
+
+            if (error) throw error;
+            setSessionData(data);
+            setIsLightsOut(data.is_lights_out || false);
+            setAmbientAudio(data.ambient_audio || 'none');
+            setSceneMode(data.scene_mode || 'EXPLORATION');
+        } catch (err) {
+            console.error("Error fetching session:", err);
+        }
+    };
+
+    const fetchInvestigators = async (sessionId: string) => {
+        if (!sessionId) return;
+        setIsLoadingData(true);
+        setFetchError(null);
+        try {
+            let query = supabase.from('investigators').select('*').order('created_at', { ascending: false });
+
+            // Fetch investigator IDs linked to this session
+            const { data: sessionLinks, error: linkError } = await supabase
+                .from('session_characters')
+                .select('investigator_id')
+                .eq('session_id', sessionId);
+
+            if (linkError) throw linkError;
+
+            const investigatorIds = sessionLinks.map(link => link.investigator_id);
+
+            if (investigatorIds.length > 0) {
+                query = query.in('id', investigatorIds);
+            } else {
+                setInvestigators([]);
+                setIsLoadingData(false);
+                return;
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            const mapped = data.map(row => ({
+                ...row.data,
+                id: row.id,
+                name: row.name,
+                occupation: row.occupation,
+                isFirearmReady: row.is_firearm_ready || false,
+                rawInvestigatorData: row.data
+            }));
+
+            setInvestigators(mapped);
+        } catch (err: any) {
+            console.error(err);
+            setFetchError(err.message || 'Erro ao carregar investigadores da sessão.');
+        } finally {
+            setIsLoadingData(false);
+        }
+    };
+
+    const fetchActiveRolls = async () => {
+        if (!selectedSessionId) return;
+        const { data } = await supabase
+            .from('roll_requests')
+            .select('*')
+            .eq('session_id', selectedSessionId)
+            .order('created_at', { ascending: false })
+            .limit(10);
+        if (data) setActiveRolls(data);
+    };
+
+    // Effects
     useEffect(() => {
         if (!isLoading) {
             if (!user) {
                 router.push('/login');
             } else if (user.role !== 'KEEPER') {
-                router.push('/dashboard'); // Kick players back to their dashboard
+                router.push('/dashboard');
             } else {
                 fetchSessionData();
                 fetchInvestigators(selectedSessionId);
                 fetchCustomItems();
             }
         }
-    }, [user, isLoading, router]);
-
-    const fetchCustomItems = async () => {
-        const { data } = await supabase
-            .from('custom_items')
-            .select('*')
-            .eq('keeper_id', user?.id)
-            .order('created_at', { ascending: false });
-        if (data) setCustomItems(data);
-    };
+    }, [user, isLoading, router, selectedSessionId]);
 
     // Subscribe to Roll Requests
     useEffect(() => {
         if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
 
         console.log("Setting up REALTIME listener for session:", selectedSessionId);
-
-        const fetchActiveRolls = async () => {
-            const { data } = await supabase
-                .from('roll_requests')
-                .select('*')
-                .eq('session_id', selectedSessionId)
-                .order('created_at', { ascending: false })
-                .limit(10);
-            if (data) setActiveRolls(data);
-        };
 
         fetchActiveRolls();
 
@@ -150,6 +222,31 @@ export default function GMSessionPage() {
         };
     }, [user, selectedSessionId]);
 
+    // Persistent Broadcast Channel for GM commands (SFX, Status updates)
+    useEffect(() => {
+        if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
+
+        console.log("Setting up GM Broadcast Channel:", selectedSessionId);
+        const channel = supabase.channel(`session_global_${selectedSessionId}`, {
+            config: {
+                broadcast: { self: true }
+            }
+        });
+
+        channel.subscribe((status) => {
+            console.log(`GM Broadcast Channel [${selectedSessionId}] status:`, status);
+            if (status === 'SUBSCRIBED') {
+                broadcastChannelRef.current = channel;
+            }
+        });
+
+        return () => {
+            console.log("Cleaning up GM Broadcast Channel");
+            supabase.removeChannel(channel);
+            broadcastChannelRef.current = null;
+        };
+    }, [user, selectedSessionId]);
+
     // Realtime Listener for Investigator updates (HP, MP, Sanity on GM screen)
     useEffect(() => {
         if (!user || user.role !== 'KEEPER' || isLoadingData) return;
@@ -169,25 +266,24 @@ export default function GMSessionPage() {
                         id: payload.new.id,
                         name: payload.new.name,
                         occupation: payload.new.occupation,
-                        isFirearmReady: payload.new.is_firearm_ready || false
+                        isFirearmReady: payload.new.is_firearm_ready || false,
+                        rawInvestigatorData: payload.new.data
                     };
 
                     setInvestigators(prev => prev.map(inv => inv.id === newData.id ? newData : inv));
 
                     // If viewing this investigator currently, update local state
-                    if (investigator && investigator.id === newData.id) {
+                    if (selectedId === newData.id) {
                         setInvestigator(newData);
                     }
                 }
             )
-            .subscribe((status) => {
-                console.log("Supabase Investigators Realtime Status (GM):", status);
-            });
+            .subscribe();
 
         return () => {
             supabase.removeChannel(subscription);
         };
-    }, [user, isLoadingData, selectedSessionId, investigator]);
+    }, [user, isLoadingData, selectedSessionId, selectedId]);
 
     // Cleanup stale rolls (2 minutes = 120000ms)
     useEffect(() => {
@@ -204,71 +300,17 @@ export default function GMSessionPage() {
         return () => clearInterval(interval);
     }, []);
 
-    const fetchSessionData = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('sessions')
-                .select('*')
-                .eq('id', selectedSessionId)
-                .single();
-
-            if (error) throw error;
-            setSessionData(data);
-            setIsLightsOut(data.is_lights_out || false);
-            setAmbientAudio(data.ambient_audio || 'none');
-            setSceneMode(data.scene_mode || 'EXPLORATION');
-        } catch (err) {
-            console.error("Error fetching session:", err);
+    // State Observer for Debugging
+    useEffect(() => {
+        if (investigator?.id) {
+            console.log(`[GM_DEBUG] Investigator em foco atualizado: ${investigator.name}`, {
+                isMajorWound: investigator.isMajorWound,
+                madnessState: investigator.madnessState,
+                inventoryCount: investigator.inventory?.length || 0
+            });
         }
-    };
+    }, [investigator]);
 
-
-    const fetchInvestigators = async (sessionId: string) => {
-        setIsLoadingData(true);
-        setFetchError(null);
-        try {
-            let query = supabase.from('investigators').select('*').order('created_at', { ascending: false });
-
-            if (sessionId) {
-                // Fetch investigator IDs linked to this session
-                const { data: sessionLinks, error: linkError } = await supabase
-                    .from('session_characters')
-                    .select('investigator_id')
-                    .eq('session_id', sessionId);
-
-                if (linkError) throw linkError;
-
-                const investigatorIds = sessionLinks.map(link => link.investigator_id);
-
-                if (investigatorIds.length > 0) {
-                    query = query.in('id', investigatorIds);
-                } else {
-                    // No characters in this session yet
-                    setInvestigators([]);
-                    setIsLoadingData(false);
-                    return;
-                }
-            }
-
-            const { data, error } = await query;
-            if (error) throw error;
-
-            const mapped = data.map(row => ({
-                ...row.data,
-                id: row.id,
-                name: row.name,
-                occupation: row.occupation,
-                isFirearmReady: row.is_firearm_ready || false
-            }));
-
-            setInvestigators(mapped);
-        } catch (err: any) {
-            console.error(err);
-            setFetchError(err.message || 'Erro ao carregar investigadores da sessão.');
-        } finally {
-            setIsLoadingData(false);
-        }
-    };
 
     if (isLoading || !user || user.role !== 'KEEPER') return <LoadingScreen message="Acessando Arquivos Confidenciais..." />;
 
@@ -349,13 +391,13 @@ export default function GMSessionPage() {
             const currentInventory = investigator.inventory || [];
             const newInventory = [...currentInventory, itemInstance];
 
-            // Direct update using RPC or just regular update with the new array
-            // Optimization: We already have the current state from the local `investigator` object
+            // Defensive: protect existing data
+            const baseData = investigator.rawInvestigatorData || {};
+            const newData = { ...baseData, inventory: newInventory };
+
             const { error: updateError } = await supabase
                 .from('investigators')
-                .update({
-                    data: { ...investigator.rawInvestigatorData, inventory: newInventory }
-                })
+                .update({ data: newData })
                 .eq('id', investigator.id);
 
             if (updateError) throw updateError;
@@ -367,10 +409,27 @@ export default function GMSessionPage() {
             setShowItemModal(false);
 
             // Local update to keep UI in sync before realtime catches up
+            const updatedInv = {
+                ...investigator,
+                inventory: newInventory,
+                rawInvestigatorData: { ...investigator.rawInvestigatorData, inventory: newInventory }
+            };
+            // --- MODO BRUTO: Segundo sinal de sincronia ---
+            const refreshMsg: { type: 'broadcast', event: string, payload: any } = {
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: investigator.id }
+            };
+
+            if (broadcastChannelRef.current) {
+                broadcastChannelRef.current.send(refreshMsg);
+            }
+            // Segunda via via canal global
+            supabase.channel(`session_global_${selectedSessionId}`).send(refreshMsg);
+
+            setInvestigator(updatedInv);
             setInvestigators(prev => prev.map(inv =>
-                inv.id === investigator.id
-                    ? { ...inv, data: { ...inv.data, inventory: newInventory } }
-                    : inv
+                inv.id === investigator.id ? updatedInv : inv
             ));
 
         } catch (error) {
@@ -380,10 +439,19 @@ export default function GMSessionPage() {
     };
 
     const handleToggleStatus = async (field: 'isMajorWound' | 'madnessState', value: any) => {
-        if (!investigator) return;
+        if (!investigator) {
+            console.error("[GM_STATUS] Tentativa de mudar status sem investigador selecionado.");
+            return;
+        }
+
+        console.log(`[GM_STATUS] Toggling ${field} para ${value} no investigador ${investigator.name}`);
+
         try {
-            const newData = { ...investigator.rawInvestigatorData };
-            newData[field] = value;
+            // Defensive: ensure we have the base data to avoid wiping the record
+            const baseData = investigator.rawInvestigatorData || {};
+            const newData = { ...baseData, [field]: value };
+
+            console.log(`[GM_STATUS] Enviando para o Supabase (campo 'data'):`, newData);
 
             const { error: updateError } = await supabase
                 .from('investigators')
@@ -392,15 +460,55 @@ export default function GMSessionPage() {
 
             if (updateError) throw updateError;
 
+            // Broadcast signal
+            const payload = {
+                investigatorId: investigator.id,
+                field,
+                value
+            };
+
+            // --- MODO BRUTO: Broadcast Redundante ---
+            const broadcastMsg: { type: 'broadcast', event: string, payload: any } = {
+                type: 'broadcast',
+                event: 'status_update',
+                payload
+            };
+
+            // Canal persistente
+            if (broadcastChannelRef.current) {
+                broadcastChannelRef.current.send(broadcastMsg);
+            }
+
+            // Fallback: Canal de tiro curto (one-shot) para garantir
+            const fallbackChannel = supabase.channel(`fallback_${Date.now()}`);
+            fallbackChannel.subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    fallbackChannel.send(broadcastMsg).then(() => {
+                        supabase.removeChannel(fallbackChannel);
+                    });
+                }
+            });
+
+            // Canal global fixo (terceira via de segurança)
+            supabase.channel(`session_global_${selectedSessionId}`).send(broadcastMsg);
+
             // Local update for immediate feedback
+            // IMPORTANT: Spread investigator, THEN newData properties to ensure they are at top level
+            const updatedInv = {
+                ...investigator,
+                ...newData,
+                rawInvestigatorData: newData
+            };
+
+            console.log(`[GM_STATUS] Estado local final pos-clique:`, updatedInv);
+
+            setInvestigator(updatedInv);
             setInvestigators(prev => prev.map(inv =>
-                inv.id === investigator.id
-                    ? { ...inv, data: newData }
-                    : inv
+                inv.id === investigator.id ? updatedInv : inv
             ));
 
         } catch (error) {
-            console.error("Erro ao alterar status:", error);
+            console.error("[GM_STATUS] Erro fatal:", error);
             alert("Erro ao alterar o status do investigador.");
         }
     };
@@ -411,9 +519,9 @@ export default function GMSessionPage() {
         try {
             console.log(`[GM_AUDIO] Enviando broadcast: ${soundUrl} -> ${soundTargetId}`);
 
-            const response = await supabase
-                .channel(`session_global_${selectedSessionId}`)
-                .send({
+            let response;
+            if (broadcastChannelRef.current) {
+                response = await broadcastChannelRef.current.send({
                     type: 'broadcast',
                     event: 'play_sound',
                     payload: {
@@ -421,9 +529,24 @@ export default function GMSessionPage() {
                         targetId: soundTargetId
                     }
                 });
+            } else {
+                response = await supabase
+                    .channel(`session_global_${selectedSessionId}`)
+                    .send({
+                        type: 'broadcast',
+                        event: 'play_sound',
+                        payload: {
+                            soundUrl,
+                            targetId: soundTargetId
+                        }
+                    });
+            }
 
-            if (response !== 'ok') {
-                throw new Error(`Erro no broadcast: ${response}`);
+            console.log(`[GM_AUDIO] Resposta do broadcast: ${response}`);
+
+            if (response !== 'ok' && response !== 'sent' && response !== 'timed out') {
+                // Supabase send can return 'ok', 'sent', 'timed out' or 'error'
+                console.warn(`Broadcast status incomum: ${response}`);
             }
         } catch (err) {
             console.error("Error sending sound broadcast:", err);
@@ -644,24 +767,11 @@ export default function GMSessionPage() {
                                         const rotationClass = i % 2 === 0 ? 'rotate-[2deg]' : '-rotate-[2deg]';
 
                                         return (
-                                            <div key={inv.id} className={`relative z-10 transition-all duration-500 origin-center group ${rotationClass} hover:rotate-0 hover:z-50 shadow-2xl shrink-0 ${scaleClass} hover:scale-110`}>
-                                                {/* Ferramentas do Guardião Hover */}
-                                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex gap-2 w-max opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none group-hover:pointer-events-auto">
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowItemModal(true); }}
-                                                        className="h-8 bg-green-900 hover:bg-green-800 text-green-100 border border-green-700 font-serif text-xs shadow-lg"
-                                                    >
-                                                        <Plus className="w-3 h-3 mr-1" /> Item
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={(e) => { e.stopPropagation(); setInvestigator(inv); setSelectedId(inv.id); setShowRollModal(true); }}
-                                                        className="h-8 bg-[#2a1a10] hover:bg-black/80 text-[var(--color-mythos-gold)] border border-[var(--color-mythos-gold-dim)] font-serif text-xs shadow-lg"
-                                                    >
-                                                        Teste
-                                                    </Button>
-                                                </div>
+                                            <div
+                                                key={inv.id}
+                                                onClick={() => { setInvestigator(inv); setSelectedId(inv.id); }}
+                                                className={`relative z-10 transition-all duration-500 origin-center cursor-pointer group ${rotationClass} ${selectedId === inv.id ? 'rotate-0 z-50 scale-110 shadow-[0_0_30px_rgba(var(--color-mythos-gold-rgb),0.5)] border-2 border-[var(--color-mythos-gold)]' : 'hover:rotate-0 hover:z-50 shadow-2xl shrink-0 ' + scaleClass + ' hover:scale-110'}`}
+                                            >
                                                 <CompanionCard companion={companionObj} />
                                             </div>
                                         );
@@ -678,139 +788,98 @@ export default function GMSessionPage() {
             </div>
 
             {/* Modals for Roll Request and Character Sheet overlaying everything */}
-            {selectedId && investigator && (
+            {selectedId && investigator && showRollModal && (
                 <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 sm:p-6 backdrop-blur-md animate-in fade-in">
                     <div className="w-full max-w-7xl max-h-[95vh] flex flex-col xl:flex-row gap-6">
 
-                        {showRollModal ? (
-                            <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full xl:w-[400px] shrink-0 p-6 flex flex-col shadow-2xl overflow-y-auto">
-                                <div className="flex justify-between items-center mb-6">
-                                    <div>
-                                        <h3 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Solicitar Teste</h3>
-                                        <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator.name}</p>
-                                    </div>
-                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowRollModal(false)}>
-                                        <X className="w-5 h-5" />
-                                    </Button>
+                        <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full xl:w-[400px] shrink-0 p-6 flex flex-col shadow-2xl overflow-y-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Solicitar Teste</h3>
+                                    <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator.name}</p>
+                                </div>
+                                <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowRollModal(false)}>
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo de Teste (Ex: Sanidade, Lutar)</label>
+                                    <input
+                                        type="text"
+                                        value={rollSkillName}
+                                        onChange={e => setRollSkillName(e.target.value)}
+                                        className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-[family-name:--font-typewriter] text-lg focus:outline-none focus:border-[var(--color-mythos-gold)]"
+                                        placeholder="Digite aqui..."
+                                    />
                                 </div>
 
-                                <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo de Teste (Ex: Sanidade, Lutar)</label>
+                                        <p className="text-xs text-[var(--color-mythos-gold-dim)] mb-1">Valor Alvo (Abaixo de)</p>
                                         <input
-                                            type="text"
-                                            value={rollSkillName}
-                                            onChange={e => setRollSkillName(e.target.value)}
-                                            className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-3 text-[var(--color-mythos-gold)] font-[family-name:--font-typewriter] text-lg focus:outline-none focus:border-[var(--color-mythos-gold)]"
-                                            placeholder="Digite aqui..."
+                                            type="number"
+                                            value={rollTargetValue}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRollTargetValue(e.target.value)}
+                                            placeholder="Ex: 50"
+                                            className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] p-2 rounded focus:outline-none focus:border-[var(--color-mythos-gold)]"
                                         />
                                     </div>
+                                </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <p className="text-xs text-[var(--color-mythos-gold-dim)] mb-1">Valor Alvo (Abaixo de)</p>
-                                            <input
-                                                type="number"
-                                                value={rollTargetValue}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRollTargetValue(e.target.value)}
-                                                placeholder="Ex: 50"
-                                                className="w-full bg-black/50 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] p-2 rounded focus:outline-none focus:border-[var(--color-mythos-gold)]"
-                                            />
-                                        </div>
-                                    </div>
+                                <div className="flex items-center gap-2 mt-4 bg-[#1a0f0a] border border-[var(--color-mythos-blood)]/40 p-3 rounded shadow-inner">
+                                    <input
+                                        type="checkbox"
+                                        id="blindRoll"
+                                        className="accent-[var(--color-mythos-blood)] w-4 h-4 cursor-pointer"
+                                        checked={rollIsBlind}
+                                        onChange={(e) => setRollIsBlind(e.target.checked)}
+                                    />
+                                    <label htmlFor="blindRoll" className="text-sm font-serif text-[var(--color-mythos-gold-dim)] cursor-pointer flex-1">
+                                        <strong className="text-[var(--color-mythos-blood)] tracking-wider">Rolagem Oculta (Blind Roll)</strong>
+                                        <span className="block text-[10px] text-stone-500">O jogador não o resultado real do dado. Apenas você verá o que aconteceu.</span>
+                                    </label>
+                                </div>
 
-                                    <div className="flex items-center gap-2 mt-4 bg-[#1a0f0a] border border-[var(--color-mythos-blood)]/40 p-3 rounded shadow-inner">
+                                <div className="flex justify-end gap-2 mt-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Qtd. Dados</label>
                                         <input
-                                            type="checkbox"
-                                            id="blindRoll"
-                                            className="accent-[var(--color-mythos-blood)] w-4 h-4 cursor-pointer"
-                                            checked={rollIsBlind}
-                                            onChange={(e) => setRollIsBlind(e.target.checked)}
+                                            type="number"
+                                            value={rollDiceCount}
+                                            onChange={e => setRollDiceCount(e.target.value)}
+                                            className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-2 text-center text-[var(--color-mythos-gold)] font-mono"
+                                            min="1"
                                         />
-                                        <label htmlFor="blindRoll" className="text-sm font-serif text-[var(--color-mythos-gold-dim)] cursor-pointer flex-1">
-                                            <strong className="text-[var(--color-mythos-blood)] tracking-wider">Rolagem Oculta (Blind Roll)</strong>
-                                            <span className="block text-[10px] text-stone-500">O jogador não o resultado real do dado. Apenas você verá o que aconteceu.</span>
-                                        </label>
                                     </div>
-
-                                    <div className="flex justify-end gap-2 mt-6">
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Qtd. Dados</label>
-                                            <input
-                                                type="number"
-                                                value={rollDiceCount}
-                                                onChange={e => setRollDiceCount(e.target.value)}
-                                                className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 p-2 text-center text-[var(--color-mythos-gold)] font-mono"
-                                                min="1"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo (Faces)</label>
-                                            <Select value={rollDiceType} onValueChange={setRollDiceType}>
-                                                <SelectTrigger className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] font-mono h-[42px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-[#120a0a] border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)] font-mono">
-                                                    <SelectItem value="d100">d100</SelectItem>
-                                                    <SelectItem value="d20">d20</SelectItem>
-                                                    <SelectItem value="d10">d10</SelectItem>
-                                                    <SelectItem value="d8">d8</SelectItem>
-                                                    <SelectItem value="d6">d6</SelectItem>
-                                                    <SelectItem value="d4">d4</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-[var(--color-mythos-gold-dim)] uppercase tracking-wider font-bold">Tipo (Faces)</label>
+                                        <Select value={rollDiceType} onValueChange={setRollDiceType}>
+                                            <SelectTrigger className="w-full bg-black border-2 border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-gold)] font-mono h-[42px]">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-[#120a0a] border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold)] font-mono">
+                                                <SelectItem value="d100">d100</SelectItem>
+                                                <SelectItem value="d20">d20</SelectItem>
+                                                <SelectItem value="d10">d10</SelectItem>
+                                                <SelectItem value="d8">d8</SelectItem>
+                                                <SelectItem value="d6">d6</SelectItem>
+                                                <SelectItem value="d4">d4</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-
-                                    <Button
-                                        onClick={handleSendRollRequest}
-                                        className="w-full py-6 mt-4 bg-[#2a1a10] hover:bg-[var(--color-mythos-gold)] hover:text-black border border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-lg transition-colors group"
-                                    >
-                                        <Zap className="w-5 h-5 mr-3 group-hover:animate-pulse" />
-                                        FORÇAR TESTE
-                                    </Button>
                                 </div>
+
+                                <Button
+                                    onClick={handleSendRollRequest}
+                                    className="w-full py-6 mt-4 bg-[#2a1a10] hover:bg-[var(--color-mythos-gold)] hover:text-black border border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-lg transition-colors group"
+                                >
+                                    <Zap className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                                    FORÇAR TESTE
+                                </Button>
                             </div>
-                        ) : (
-                            <div className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] rounded w-full max-w-[400px] shrink-0 p-6 flex flex-col shadow-2xl relative">
-                                <div className="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h3 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Ações do Guardião</h3>
-                                        <p className="text-[10px] text-gray-500 font-mono mt-1">Alvo: {investigator.name}</p>
-                                    </div>
-                                    <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={handleClose}>
-                                        <X className="w-5 h-5" />
-                                    </Button>
-                                </div>
-
-                                <div className="space-y-4 flex-1">
-                                    <Button
-                                        onClick={() => setShowRollModal(true)}
-                                        className="w-full py-4 bg-black hover:bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)]/30 hover:border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-xs transition-colors"
-                                    >
-                                        Painel de Testes Rápidos
-                                    </Button>
-                                    <Button
-                                        onClick={() => setShowItemModal(true)}
-                                        className="w-full py-4 bg-green-950/20 hover:bg-green-900 border border-green-900/30 hover:border-green-700 text-green-600 hover:text-green-300 font-serif uppercase tracking-widest text-xs transition-colors"
-                                    >
-                                        Enviar Carta Físico / Item
-                                    </Button>
-                                    <Button
-                                        onClick={() => setShowStatusModal(true)}
-                                        className="w-full py-4 bg-purple-950/20 hover:bg-purple-900 border border-purple-900/30 hover:border-purple-700 text-purple-600 hover:text-purple-300 font-serif uppercase tracking-widest text-xs transition-colors"
-                                    >
-                                        Surtos & Agonias (Status)
-                                    </Button>
-                                    <Button
-                                        onClick={() => setShowSheetModal(true)}
-                                        className="w-full py-4 bg-blue-950/20 hover:bg-blue-900 border border-blue-900/30 hover:border-blue-700 text-blue-600 hover:text-blue-300 font-serif uppercase tracking-widest text-xs transition-colors"
-                                    >
-                                        Ver Ficha Completa
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             )}
@@ -1139,6 +1208,58 @@ export default function GMSessionPage() {
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            )}
+
+            {/* Fixed Action Bar for Selected Investigator */}
+            {selectedId && investigator && (
+                <div className="fixed bottom-0 left-0 right-0 z-[100] animate-in slide-in-from-bottom duration-300">
+                    <div className="bg-[#0a0808]/95 backdrop-blur-xl border-t border-[var(--color-mythos-gold-dim)]/50 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] py-4 px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full border-2 border-[var(--color-mythos-gold)] overflow-hidden bg-black shrink-0 shadow-[0_0_15px_rgba(var(--color-mythos-gold-rgb),0.3)]">
+                                <img src={investigator.portrait || "/placeholder-avatar.png"} alt={investigator.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div>
+                                <h4 className="text-[var(--color-mythos-gold)] font-heading uppercase tracking-widest text-sm leading-tight">{investigator.name}</h4>
+                                <p className="text-[10px] text-stone-500 font-serif uppercase tracking-tighter">{investigator.occupation}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap justify-center gap-3">
+                            <Button
+                                onClick={() => setShowRollModal(true)}
+                                className="h-10 px-6 bg-[#1a0f0a] hover:bg-[#2a1a10] border border-[var(--color-mythos-gold-dim)]/40 text-[var(--color-mythos-gold)] font-serif uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                <Zap className="w-3 h-3 mr-2" /> Solicitar Teste
+                            </Button>
+                            <Button
+                                onClick={() => setShowItemModal(true)}
+                                className="h-10 px-6 bg-green-950/20 hover:bg-green-900 border border-green-900/40 text-green-500 hover:text-green-100 font-serif uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                <Plus className="w-3 h-3 mr-2" /> Enviar Item / Carta
+                            </Button>
+                            <Button
+                                onClick={() => setShowStatusModal(true)}
+                                className="h-10 px-6 bg-purple-950/20 hover:bg-purple-900 border border-purple-900/40 text-purple-500 hover:text-purple-100 font-serif uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                <Users className="w-3 h-3 mr-2" /> Status & Agonias
+                            </Button>
+                            <Button
+                                onClick={() => setShowSheetModal(true)}
+                                className="h-10 px-6 bg-blue-950/20 hover:bg-blue-900 border border-blue-900/40 text-blue-500 hover:text-blue-100 font-serif uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                <Eye className="w-3 h-3 mr-2" /> Ver Ficha
+                            </Button>
+                            <div className="w-px h-8 bg-white/10 mx-2 hidden md:block" />
+                            <Button
+                                variant="ghost"
+                                onClick={handleClose}
+                                className="h-10 px-4 text-red-500 hover:text-red-400 hover:bg-red-950/30"
+                            >
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

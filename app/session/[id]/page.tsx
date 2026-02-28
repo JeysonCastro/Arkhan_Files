@@ -26,6 +26,8 @@ export default function PlayerSessionView() {
     const [sessionData, setSessionData] = useState<any>(null);
     const [companions, setCompanions] = useState<any[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [syncTick, setSyncTick] = useState(0); // Força re-renderização bruta
+    const [lastSync, setLastSync] = useState("");
 
     // Backpack State
     const [showInventory, setShowInventory] = useState(false);
@@ -57,8 +59,10 @@ export default function PlayerSessionView() {
         }
     }, [user, isLoading, params.id]);
 
-    const fetchSessionData = async () => {
+    const fetchSessionData = async (isSilent = false) => {
         const sessionId = params.id as string;
+        if (!isSilent) setIsLoadingData(true);
+
         try {
             // 1. Fetch Session Info
             const { data: sessionInfo, error: sessionError } = await supabase
@@ -71,7 +75,6 @@ export default function PlayerSessionView() {
             setSessionData(sessionInfo);
 
             // 2. Fetch all characters in this session via junction table
-            // We join with investigators, and then join profiles on investigators.user_id to get player name
             const { data: charsData, error: charsError } = await supabase
                 .from('session_characters')
                 .select(`
@@ -85,15 +88,16 @@ export default function PlayerSessionView() {
                         profiles ( username )
                     )
                 `)
-                .eq('session_id', sessionId);
+                .eq('session_id', sessionId)
+                .not('investigator_id', 'is', null); // Garantia de fetch fresco
 
             if (charsError) throw charsError;
 
-            // Map the nested data to a flat structure for easy rendering
+            // Map the nested data
             const mappedCompanions = charsData
                 .map((row: any) => {
                     const inv = row.investigators;
-                    if (!inv) return null; // Safe fallback if RLS or deletion happens
+                    if (!inv) return null;
 
                     const investigatorData = inv.data;
                     const profile = inv.profiles;
@@ -114,21 +118,22 @@ export default function PlayerSessionView() {
                         madnessState: investigatorData?.madnessState || 'normal',
                         isFirearmReady: inv.is_firearm_ready || false,
                         inventory: investigatorData?.inventory || [],
-                        rawInvestigatorData: investigatorData // Keep a reference for easy updates
+                        rawInvestigatorData: investigatorData
                     };
                 })
-                .filter((c: unknown) => c !== null) as any[]; // Remove any null elements and cast
+                .filter((c: unknown) => c !== null) as any[];
 
-            // Put current user's character first (optional UX enhancement)
             mappedCompanions.sort((a, b) => (a.isCurrentUser === b.isCurrentUser) ? 0 : a.isCurrentUser ? -1 : 1);
 
             setCompanions(mappedCompanions);
+            setSyncTick(prev => prev + 1);
+            setLastSync(new Date().toLocaleTimeString());
+            console.log(`[GROTESCO] Sync OK. Render: ${syncTick + 1}`);
         } catch (err) {
             console.error("Error fetching session:", err);
-            // Maybe redirect if session not found
-            router.push('/dashboard');
+            if (!isSilent) router.push('/dashboard');
         } finally {
-            setIsLoadingData(false);
+            if (!isSilent) setIsLoadingData(false);
         }
     };
 
@@ -166,6 +171,8 @@ export default function PlayerSessionView() {
                             inventory: invData?.inventory || [],
                             rawInvestigatorData: invData
                         };
+
+                        console.log(`[REALTIME_SYNC] Atualizado ${newCompanions[idx].characterName}. Major: ${newCompanions[idx].isMajorWound}`);
 
                         // Realtime Item Notification if current user's inventory grew
                         if (newCompanions[idx].isCurrentUser) {
@@ -221,6 +228,27 @@ export default function PlayerSessionView() {
                     return prev;
                 });
             })
+            .on('broadcast', { event: 'status_update' }, (payload) => {
+                const { investigatorId, field, value } = payload.payload;
+                console.log(`[STATUS_BROADCAST] Recebido: ${field} = ${value} para ${investigatorId}. Iniciando refresh silencioso.`);
+
+                // Otimista: Aplicar localmente primeiro
+                setCompanions(prev => {
+                    return prev.map(c => {
+                        if (c.id === investigatorId) {
+                            return { ...c, [field]: value };
+                        }
+                        return c;
+                    });
+                });
+
+                // Garantia: Refresh silencioso para pegar o objeto 'data' completo (mochila, etc)
+                fetchSessionData(true);
+            })
+            .on('broadcast', { event: 'refresh_session' }, () => {
+                console.log("[BROADCAST] Refresh forçado pelo mestre.");
+                fetchSessionData(true);
+            })
             .subscribe((status) => {
                 console.log(`Supabase Realtime (Global) [${sessionId}]:`, status);
             });
@@ -228,6 +256,22 @@ export default function PlayerSessionView() {
         return () => {
             supabase.removeChannel(invSubscription);
             supabase.removeChannel(sessionSub);
+        };
+    }, [params.id, isLoadingData]);
+
+    // --- MODO BRUTO E GROTESCO: Polling de Segurança ---
+    useEffect(() => {
+        if (!params.id || isLoadingData) return;
+
+        console.log("[GROTESCO] Iniciando Polling de Segurança (1.5s)");
+        const interval = setInterval(() => {
+            console.log("[GROTESCO] Executando refresh automático de segurança...");
+            fetchSessionData(true);
+        }, 1500);
+
+        return () => {
+            console.log("[GROTESCO] Parando Polling de Segurança");
+            clearInterval(interval);
         };
     }, [params.id, isLoadingData]);
 
@@ -387,7 +431,7 @@ export default function PlayerSessionView() {
                         >
                             Quadro de Evidências
                         </Button>
-                        <Button variant="outline" onClick={fetchSessionData} size="sm" className="border-[var(--color-mythos-gold-dim)]/30 text-[var(--color-mythos-gold-dim)] bg-black/20 hover:bg-black/80 hover:text-[var(--color-mythos-gold)]">
+                        <Button variant="outline" onClick={() => fetchSessionData(false)} size="sm" className="border-[var(--color-mythos-gold-dim)]/30 text-[var(--color-mythos-gold-dim)] bg-black/20 hover:bg-black/80 hover:text-[var(--color-mythos-gold)]">
                             Atualizar Status
                         </Button>
                     </div>
@@ -397,7 +441,17 @@ export default function PlayerSessionView() {
                 <SanityEffectProvider
                     currentSanity={currentUserInvestigator?.sanity?.current || 50}
                     startSanity={currentUserInvestigator?.sanity?.start || currentUserInvestigator?.sanity?.max || 50}
+                    madnessState={currentUserInvestigator?.madnessState}
                 >
+                    {/* Trauma Overlay (Major Wound) */}
+                    {currentUserInvestigator?.isMajorWound && (
+                        <div className="fixed inset-0 pointer-events-none z-[160] transition-opacity duration-1000">
+                            {/* Pulsing blood vignette */}
+                            <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(150,0,0,0.6)] animate-pulse" style={{ animationDuration: '3s' }} />
+                            {/* Subtle red tint */}
+                            <div className="absolute inset-0 bg-red-900/10 mix-blend-multiply" />
+                        </div>
+                    )}
                     {/* The "Table" Area */}
                     <div className="flex-1 flex flex-col justify-between py-8">
 
@@ -626,6 +680,11 @@ export default function PlayerSessionView() {
                 </div>,
                 document.body
             )}
+
+            {/* DEBUG HUD GROTESCO (Remover depois se quiser) */}
+            <div className="fixed bottom-2 left-2 z-[999] bg-black/80 border border-green-500/30 p-2 rounded text-[8px] font-mono text-green-500 pointer-events-none opacity-50">
+                SYNC: {syncTick} | TIME: {lastSync} | MAJOR: {String(currentUserInvestigator?.isMajorWound)}
+            </div>
         </div>
     );
 }

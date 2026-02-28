@@ -444,7 +444,31 @@ h6 {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.force-glitch {
+  animation-duration: 0.5s !important;
+  filter: contrast(150%) brightness(120%) saturate(200%) hue-rotate(15deg) !important;
+}
+
+@keyframes blood-pulse {
+  0% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0.4;
+  }
+}
+
+.animate-blood-pulse {
+  animation: blood-pulse 4s ease-in-out infinite;
 }
