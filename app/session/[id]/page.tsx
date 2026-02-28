@@ -136,8 +136,11 @@ export default function PlayerSessionView() {
     useEffect(() => {
         if (!params.id || isLoadingData) return;
 
-        const subscription = supabase
-            .channel(`session_updates_${params.id}`)
+        const sessionId = params.id as string;
+
+        // 1. Investigators Update Channel
+        const invSubscription = supabase
+            .channel(`session_updates_${sessionId}`)
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
@@ -181,24 +184,25 @@ export default function PlayerSessionView() {
                 });
             })
             .subscribe((status) => {
-                console.log("Supabase Player Realtime Status:", status);
+                console.log(`Supabase Realtime (Investigators) [${sessionId}]:`, status);
             });
 
-        // Listen for Global Session Changes (Lights Out)
+        // 2. Global Session & Audio Broadcast Channel
         const sessionSub = supabase
-            .channel(`session_global_${params.id}`)
+            .channel(`session_global_${sessionId}`)
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
                 table: 'sessions',
-                filter: `id=eq.${params.id}`
+                filter: `id=eq.${sessionId}`
             }, (payload) => {
-                setSessionData((prev: any) => prev ? {
+                console.log("Global Session Update Received:", payload.new);
+                setSessionData((prev: any) => ({
                     ...prev,
                     is_lights_out: payload.new.is_lights_out,
                     ambient_audio: payload.new.ambient_audio,
                     scene_mode: payload.new.scene_mode
-                } : prev);
+                }));
             })
             .on('broadcast', { event: 'play_sound' }, (payload) => {
                 const url = payload.payload?.soundUrl;
@@ -206,9 +210,8 @@ export default function PlayerSessionView() {
 
                 setCompanions(prev => {
                     const currentInvestigator = prev.find(c => c.isCurrentUser);
-                    if (!currentInvestigator) return prev; // Not fully loaded yet
+                    if (!currentInvestigator) return prev;
 
-                    // Se enviou url E (o alvo for ALL ou for exatamente este jogador), toca!
                     if (url && (!targetId || targetId === 'ALL' || targetId === currentInvestigator.id)) {
                         console.log(`SFX Recebido: ${url} (Alvo: ${targetId || 'ALL'})`);
                         const audio = new Audio(url);
@@ -218,10 +221,12 @@ export default function PlayerSessionView() {
                     return prev;
                 });
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`Supabase Realtime (Global) [${sessionId}]:`, status);
+            });
 
         return () => {
-            supabase.removeChannel(subscription);
+            supabase.removeChannel(invSubscription);
             supabase.removeChannel(sessionSub);
         };
     }, [params.id, isLoadingData]);
@@ -296,9 +301,13 @@ export default function PlayerSessionView() {
         }
     };
 
-    const hasLightSource = currentUserInvestigator?.inventory?.some(
-        (i: any) => i.id === 'utl_lanterna' || i.id === 'utl_lampiao'
-    );
+    const hasLightSource = currentUserInvestigator?.inventory?.some((i: any) => {
+        const keywords = ['lanterna', 'lampião', 'vela', 'tocha', 'light', 'flashlight'];
+        const name = (i.name || '').toLowerCase();
+        const id = (i.id || '').toLowerCase();
+        const desc = (i.description || '').toLowerCase();
+        return keywords.some(k => name.includes(k) || id.includes(k) || desc.includes(k));
+    });
 
     return (
         <div
@@ -335,7 +344,7 @@ export default function PlayerSessionView() {
             <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] pointer-events-none z-0" />
 
             {/* Immersive Audio & Video */}
-            <SessionAudioPlayer trackKey={sessionData?.ambient_audio || 'none'} />
+            <SessionAudioPlayer trackKey={sessionData?.ambient_audio || 'none'} sessionId={params.id as string} />
             <CinematicOverlay isActive={sessionData?.scene_mode === 'CINEMATIC'} />
 
             {/* Real-time Dice Systems */}

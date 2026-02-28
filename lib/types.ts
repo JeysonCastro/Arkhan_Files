@@ -90,6 +90,7 @@ export interface Investigator {
     madnessState?: 'normal' | 'bout_of_madness' | 'underlying_insanity';
 
     avatar?: any; // Avatar Paperdoll config
+    rawInvestigatorData?: any; // Original Supabase payload for easier updates
 }
 
 export interface PinboardItem {

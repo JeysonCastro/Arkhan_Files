@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { MOCK_INVESTIGATORS } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
-import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume2, Users } from "lucide-react";
+import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume1, Volume2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
@@ -15,7 +15,9 @@ import { InitiativeTracker } from "@/components/features/combat/initiative-track
 import { useInvestigator } from "@/hooks/use-investigator";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
+import { SessionAudioPlayer } from "@/components/features/session/audio-player";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { MASTER_ITEMS_DB } from "@/lib/items-db";
@@ -54,6 +56,7 @@ export default function GMSessionPage() {
     const [showPinboard, setShowPinboard] = useState(false);
     const [showSoundModal, setShowSoundModal] = useState(false);
     const [soundTargetId, setSoundTargetId] = useState<string>('ALL');
+    const [masterVolume, setMasterVolume] = useState(1.0);
     const [searchQuery, setSearchQuery] = useState("");
     const [customItems, setCustomItems] = useState<any[]>([]);
 
@@ -331,25 +334,6 @@ export default function GMSessionPage() {
         }
     };
 
-    const handlePlaySound = async (url: string) => {
-        if (!selectedSessionId) return;
-        const channel = supabase.channel(`session_global_${selectedSessionId}`);
-        channel.subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.send({
-                    type: 'broadcast',
-                    event: 'play_sound',
-                    payload: {
-                        soundUrl: url,
-                        targetId: soundTargetId // Manda o ID do jogador (ou 'ALL')
-                    }
-                });
-                console.log(`Som disparado: ${url} (Alvo: ${soundTargetId})`);
-                supabase.removeChannel(channel);
-            }
-        });
-    };
-
     const handleClose = () => {
         setSelectedId(null);
     };
@@ -365,24 +349,30 @@ export default function GMSessionPage() {
             const currentInventory = investigator.inventory || [];
             const newInventory = [...currentInventory, itemInstance];
 
-            handleInfoChange('inventory', newInventory);
-
-            const { data: dbInv } = await supabase
+            // Direct update using RPC or just regular update with the new array
+            // Optimization: We already have the current state from the local `investigator` object
+            const { error: updateError } = await supabase
                 .from('investigators')
-                .select('data')
-                .eq('id', investigator.id)
-                .single();
+                .update({
+                    data: { ...investigator.rawInvestigatorData, inventory: newInventory }
+                })
+                .eq('id', investigator.id);
 
-            if (dbInv) {
-                const newData = { ...dbInv.data, inventory: newInventory };
-                await supabase
-                    .from('investigators')
-                    .update({ data: newData })
-                    .eq('id', investigator.id);
+            if (updateError) throw updateError;
 
-                alert(`Item "${item.name}" enviado para ${investigator.name}!`);
-                setShowItemModal(false);
-            }
+            // Optional: Play a "item received" sound for the player
+            handlePlaySound('/audio/sfx/item_pickup.mp3');
+
+            alert(`Item "${item.name}" enviado para ${investigator.name}!`);
+            setShowItemModal(false);
+
+            // Local update to keep UI in sync before realtime catches up
+            setInvestigators(prev => prev.map(inv =>
+                inv.id === investigator.id
+                    ? { ...inv, data: { ...inv.data, inventory: newInventory } }
+                    : inv
+            ));
+
         } catch (error) {
             console.error("Erro ao enviar item:", error);
             alert("Erro ao enviar o item.");
@@ -392,36 +382,63 @@ export default function GMSessionPage() {
     const handleToggleStatus = async (field: 'isMajorWound' | 'madnessState', value: any) => {
         if (!investigator) return;
         try {
-            const { data: dbInv } = await supabase
+            const newData = { ...investigator.rawInvestigatorData };
+            newData[field] = value;
+
+            const { error: updateError } = await supabase
                 .from('investigators')
-                .select('data')
-                .eq('id', investigator.id)
-                .single();
+                .update({ data: newData })
+                .eq('id', investigator.id);
 
-            if (dbInv) {
-                const newData = { ...dbInv.data };
-                newData[field] = value;
+            if (updateError) throw updateError;
 
-                await supabase
-                    .from('investigators')
-                    .update({ data: newData })
-                    .eq('id', investigator.id);
+            // Local update for immediate feedback
+            setInvestigators(prev => prev.map(inv =>
+                inv.id === investigator.id
+                    ? { ...inv, data: newData }
+                    : inv
+            ));
 
-            }
         } catch (error) {
             console.error("Erro ao alterar status:", error);
             alert("Erro ao alterar o status do investigador.");
         }
     };
 
+    const handlePlaySound = async (soundUrl: string) => {
+        if (!selectedSessionId) return;
+
+        try {
+            console.log(`[GM_AUDIO] Enviando broadcast: ${soundUrl} -> ${soundTargetId}`);
+
+            const response = await supabase
+                .channel(`session_global_${selectedSessionId}`)
+                .send({
+                    type: 'broadcast',
+                    event: 'play_sound',
+                    payload: {
+                        soundUrl,
+                        targetId: soundTargetId
+                    }
+                });
+
+            if (response !== 'ok') {
+                throw new Error(`Erro no broadcast: ${response}`);
+            }
+        } catch (err) {
+            console.error("Error sending sound broadcast:", err);
+            alert("Erro ao disparar som na mesa.");
+        }
+    };
+
     const handleSendRollRequest = async () => {
-        if (!selectedId || !selectedSessionId || !rollSkillName || !rollTargetValue) {
-            alert("Preencha a perícia e o valor alvo. Selecione uma sessão específica primeiro.");
+        if (!selectedId || !selectedSessionId || !rollSkillName) {
+            alert("Preencha a perícia e selecione uma sessão específica primeiro.");
             return;
         }
 
         try {
-            const { error } = await supabase.from('roll_requests').insert([{
+            const { error: dbError } = await supabase.from('roll_requests').insert([{
                 session_id: selectedSessionId,
                 keeper_id: user?.id,
                 investigator_id: selectedId,
@@ -433,7 +450,7 @@ export default function GMSessionPage() {
                 status: 'PENDING'
             }]);
 
-            if (error) throw error;
+            if (dbError) throw dbError;
 
             setShowRollModal(false);
             setRollSkillName("");
@@ -443,7 +460,7 @@ export default function GMSessionPage() {
             setRollIsBlind(false);
         } catch (err) {
             console.error("Error creating roll request:", err);
-            alert("Erro ao solicitar rolagem.");
+            alert("Erro ao solicitar rolagem. Verifique se o banco de dados está atualizado.");
         }
     };
 
@@ -545,6 +562,9 @@ export default function GMSessionPage() {
                     backgroundBlendMode: 'normal, multiply'
                 }}
             >
+                {/* GM Audio Monitor */}
+                <SessionAudioPlayer trackKey={ambientAudio} sessionId={selectedSessionId} />
+
                 <div className="absolute inset-0 overflow-y-auto overflow-x-hidden p-4 md:p-8 z-10 flex flex-col">
 
                     {/* GM Area (Head of Table Top) */}
@@ -1080,8 +1100,32 @@ export default function GMSessionPage() {
                         </div>
 
                         <div className="mt-8 border-t border-[var(--color-mythos-gold-dim)]/50 pt-6">
-                            <h4 className="text-sm font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase mb-1">Trilha Sonora Ambiental</h4>
-                            <p className="text-[10px] text-stone-500 font-serif mb-4 uppercase tracking-widest">Toca em loop contínuo ao fundo</p>
+                            <div className="flex justify-between items-center mb-4">
+                                <div>
+                                    <h4 className="text-sm font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase mb-1">Trilha Sonora Ambiental</h4>
+                                    <p className="text-[10px] text-stone-500 font-serif uppercase tracking-widest">Sincroniza automaticamente para todos</p>
+                                </div>
+                                <div className="flex items-center gap-3 bg-black/40 p-2 rounded border border-[var(--color-mythos-gold-dim)]/20 w-48">
+                                    <Volume1 className="w-4 h-4 text-[var(--color-mythos-gold-dim)]" />
+                                    <Slider
+                                        value={[masterVolume * 100]}
+                                        max={100}
+                                        step={1}
+                                        onValueChange={(vals) => {
+                                            const newVol = vals[0] / 100;
+                                            setMasterVolume(newVol);
+                                            // Emit Broadcast
+                                            supabase.channel(`session_global_${selectedSessionId}`).send({
+                                                type: 'broadcast',
+                                                event: 'master_volume_change',
+                                                payload: { volume: newVol }
+                                            });
+                                        }}
+                                        className="cursor-pointer"
+                                    />
+                                    <Volume2 className="w-4 h-4 text-[var(--color-mythos-gold-dim)]" />
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 {Object.keys(AUDIO_TRACKS).map((track) => (
                                     <Button
