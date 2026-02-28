@@ -201,11 +201,22 @@ export default function PlayerSessionView() {
                 } : prev);
             })
             .on('broadcast', { event: 'play_sound' }, (payload) => {
-                if (payload.payload?.soundUrl) {
-                    const audio = new Audio(payload.payload.soundUrl);
-                    audio.volume = 0.5;
-                    audio.play().catch(e => console.error("Audio playback blocked:", e));
-                }
+                const url = payload.payload?.soundUrl;
+                const targetId = payload.payload?.targetId;
+
+                setCompanions(prev => {
+                    const currentInvestigator = prev.find(c => c.isCurrentUser);
+                    if (!currentInvestigator) return prev; // Not fully loaded yet
+
+                    // Se enviou url E (o alvo for ALL ou for exatamente este jogador), toca!
+                    if (url && (!targetId || targetId === 'ALL' || targetId === currentInvestigator.id)) {
+                        console.log(`SFX Recebido: ${url} (Alvo: ${targetId || 'ALL'})`);
+                        const audio = new Audio(url);
+                        audio.volume = 0.5;
+                        audio.play().catch(e => console.error("Audio playback blocked:", e));
+                    }
+                    return prev;
+                });
             })
             .subscribe();
 

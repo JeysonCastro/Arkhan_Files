@@ -5,12 +5,18 @@ import { useEffect, useRef, useState } from 'react';
 // Um dicionário prático de faixas de áudio focado no clima de Call of Cthulhu
 export const AUDIO_TRACKS: Record<string, string> = {
     'none': '',
-    'rain': 'https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg',
-    'tension': 'https://actions.google.com/sounds/v1/horror/ambient_hum_with_subtle_screams.ogg',
-    'investigation': 'https://actions.google.com/sounds/v1/horror/scary_wind.ogg',
-    'combat': 'https://actions.google.com/sounds/v1/weapons/battle_sounds.ogg',
-    'asylum': 'https://actions.google.com/sounds/v1/horror/creepy_background_wind.ogg',
-    'gramophone': 'https://actions.google.com/sounds/v1/foley/old_film_projector.ogg', // Efeitos sonoros de época
+    'Anxiety': '/audio/Anxiety.mp3',
+    'Apprehension': '/audio/Apprehension.mp3',
+    'Distant Tension': '/audio/Distant Tension.mp3',
+    'The Dread': '/audio/The Dread.mp3',
+    'Trepidation': '/audio/Trepidation.mp3',
+    'Unseen Horrors': '/audio/Unseen Horrors.mp3',
+    'Sanitarium': '/audio/293_Sanitarium.mp3',
+    'Manor Dark': '/audio/488_Manor_Dark.mp3',
+    'Docks Noir': '/audio/494_Docks_Noir.mp3',
+    'Rise of the Ancients': '/audio/42_Rise_of_the_Ancients.mp3',
+    'Computer Lab (60s)': '/audio/226_60s_Computer_Lab.mp3',
+    'Rain': '/audio/rain.mp3',
 };
 
 interface SessionAudioPlayerProps {
@@ -76,7 +82,16 @@ export function SessionAudioPlayer({ trackKey }: SessionAudioPlayerProps) {
 
     return (
         <>
-            <audio ref={audioRef} loop preload="auto" />
+            <audio
+                ref={audioRef}
+                loop
+                preload="auto"
+                onError={(e) => {
+                    console.error("Audio playback error:", e);
+                    setIsPlaying(false);
+                    // Opcionalmente, mostrar uma notificação visual aqui futuramente
+                }}
+            />
 
             {/* Strict Full-Screen Interaction Overlay when ambient audio exists but wasn't clicked */}
             {trackKey !== 'none' && !hasInteracted && (

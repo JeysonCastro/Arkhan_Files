@@ -136,10 +136,11 @@ export function CompanionCard({ companion }: CompanionCardProps) {
     return (
         <>
             <div
-                className={`relative flex flex-col md:flex-row items-center md:items-start transition-all duration-300 ${isCurrentUser ? 'scale-[1.02]' : 'opacity-90 grayscale-[0.2]'} ${isMad ? 'animate-pulse' : ''}`}
+                className={`relative flex flex-col md:flex-row items-center md:items-start transition-all duration-300 floating-card ${isCurrentUser ? '' : 'opacity-90 grayscale-[0.2]'} ${isMad ? 'animate-pulse' : ''}`}
+                style={{ animationDelay: `${Math.random() * 2}s` }} // Randomize breathing start
             >
                 {/* 1. Foto Estilo Polaroid / Vintage */}
-                <div className={`relative shrink-0 rotate-[-2deg] bg-[#e8e6df] p-2 pb-6 md:p-3 md:pb-8 shadow-xl z-20 w-32 md:w-40 border border-[#c4c1b5] transition-transform ${isCurrentUser ? 'hover:scale-105 hover:rotate-0 ring-2 ring-[var(--color-mythos-gold)] ring-offset-4 ring-offset-[#050a05]' : 'ring-1 ring-black/20'} ${isMajorWound ? 'ring-4 ring-[var(--color-mythos-blood)]' : ''} ${isMad ? 'ring-4 ring-[#8822aa]' : ''}`}>
+                <div className={`relative shrink-0 bg-[#e8e6df] p-2 pb-6 md:p-3 md:pb-8 shadow-2xl z-20 w-32 md:w-40 border border-[#c4c1b5] transition-transform ${isCurrentUser ? 'ring-2 ring-[var(--color-mythos-gold)] ring-offset-4 ring-offset-[#050a05]' : 'ring-1 ring-black/40'} ${isMajorWound ? 'ring-4 ring-[var(--color-mythos-blood)]' : ''} ${isMad ? 'ring-4 ring-[#8822aa]' : ''}`}>
 
                     {/* Pedacinho de fita crepe no topo */}
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-[#dcd9cd] opacity-90 rotate-[3deg] shadow-sm z-30 border-t border-b border-black/5" style={{ clipPath: 'polygon(5% 0%, 95% 5%, 100% 95%, 0% 100%)' }}></div>

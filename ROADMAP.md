@@ -14,23 +14,22 @@ Este documento serve como um guia vivo para o desenvolvimento das próximas gran
   * Adicionar coluna `visual_theme` (text) na tabela `sessions` (ex: `default`, `dark`, `candlelight`).
 * **Frontend:**
   * Componente `SessionAudioPlayer` usando *Howler.js* ou a Web Audio API nativa para escutar mudanças no DB via Supabase Realtime e fazer *crossfade* entre faixas (ex: `calm`, `tension`, `combat`, `supernatural`).
-  * Adicionar sons reativos curtos: Rolar dados ("clack"), abrir pinboard ("papel amassando").
-  * Sobreposição de Efeitos no CSS (Canvas/Framer) em `/session` respondendo ao `visual_theme`.
-* **Painel do KEEPER:** Controles para mudar a música e o clima visual na tela de sessão do Mestre.
+### Fase 1: Imersão Sensorial e Cinemática [CONCLUÍDO]
+- [X] Efeitos Sonoros Dinâmicos (Player de áudio embutido nas visualizações do GM e do Jogador)
+- [X] Mesa de Som (Soundpad) para o Guardião (Disparar One-shots Locais - com Suporte a Áudios Direcionados/Alucinações)
+- [X] Trilha Sonora Contínua (Loopings)
+- [X] Botão "Apagar Luzes" para o GM globalmente obscurecer a UI dos jogadores
+- [X] Modo Lanterna em que o mouse ilumina a região ao redor
+- [X] Componente de overlay `CinematicMode` para ocultar o HUD em momentos-chave
 
 ---
 
-## 📅 Fase 2: O Horror Psicológico (Percepção Alterada)
-**Status: Planejado**
-
-**Objetivo:** Distorcer a interface dos jogadores de forma silenciosa e individual baseando-se na sua pontuação de Sanidade atual.
-
-* **Frontend:**
-  * Criar `SanityEffectProvider` envolvendo a sessão do jogador.
-  * Lógica: Se a SAN do investigador cair abaixo de 50%, aplicar leve filtro SVG (Chromatic Aberration) nos textos. Se cair abaixo de 20%, aumentar distorção e pequenas falhas visuais (glitches).
-  * Feedback imediato: Quando a tabela `investigators` for atualizada e uma grande perda de SAN ocorrer num único evento, disparar animação de tremor de tela e som de zumbido rápido.
-* **Sistema de Rolagens (Blind Fumble):**
-  * Listener no Supabase que, ao detectar um resultado `FUMBLE` numa rolagem, envia um *Toast* sussurrado apenas para o Keeper sugerindo um evento narrativo tenebroso ("Eles sentem que não estão sozinhos...").
+### Fase 2: Terror Psicológico [CONCLUÍDO]
+- [X] Surtos e Agonias ativados na visão do Guardião
+- [X] `SanityEffectProvider` que aplica Canvas Glitches / Filtros CSS quando a sanidade do jogador atinge "Metade" e "1/5" do inicialvestigador cair abaixo de 50%, aplicar leve filtro SVG (Chromatic Aberration) nos textos. Se cair abaixo de 20%, aumentar distorção e pequenas falhas visuais (glitches).
+  * Feedback imediato: Quando a tabela `investigators` for atualizada e uma grande perda de SAN ocorrer num único evento, disparar
+- [X] Listener no Supabase que, ao detectar um resultado `FUMBLE` numa rolagem, envia um *Toast* sussurrado apenas para o Keeper sugerindo um evento narrativo tenebroso ("Eles sentem que não estão sozinhos...").
+- [X] SFX de alvo único (Alucinações)
 
 ---
 

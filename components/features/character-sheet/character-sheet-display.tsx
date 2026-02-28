@@ -74,40 +74,43 @@ const CharacterSheetDisplay = React.memo(function CharacterSheetDisplay({
                 </div>
 
                 {/* Sheet Content Card */}
-                <div className="bg-white/50 p-6 shadow-xl ring-1 ring-black/5 rounded-sm min-h-[800px] vintage-border backdrop-blur-sm">
+                <div className="bg-[var(--color-mythos-parchment)]/95 p-6 shadow-[0_0_50px_rgba(0,0,0,0.8),inset_0_0_80px_rgba(40,20,10,0.1)] ring-1 ring-black/20 rounded-sm min-h-[800px] vintage-border backdrop-blur-md relative overflow-hidden">
+                    {/* Inner texture mapping slightly scaled up */}
+                    <div className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20 bg-[url('/paper-texture.png')] bg-cover bg-center" />
 
-                    {activeTab === 'front' ? (
-                        <>
-                            <CharacterSheetHeader investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
+                    <div className="relative z-10">
+                        {activeTab === 'front' ? (
+                            <>
+                                <CharacterSheetHeader investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
 
-                            <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
+                                <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
 
-                            <CharacterSheetAttributes
-                                attributes={investigator.attributes}
-                                derived={investigator.derivedStats}
-                                onChange={onAttributeChange}
-                                isReadOnly={isReadOnly}
-                                isMajorWound={investigator.isMajorWound}
-                                madnessState={investigator.madnessState}
-                            />
+                                <CharacterSheetAttributes
+                                    attributes={investigator.attributes}
+                                    derived={investigator.derivedStats}
+                                    onChange={onAttributeChange}
+                                    isReadOnly={isReadOnly}
+                                    isMajorWound={investigator.isMajorWound}
+                                    madnessState={investigator.madnessState}
+                                />
 
-                            <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
+                                <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
 
-                            {/* Render Skills only if initialized */}
-                            {(investigator.skills || []).length > 0 && (
-                                <div className="space-y-6">
-                                    <CharacterSheetSkills skills={investigator.skills} onChange={onSkillChange} isReadOnly={isReadOnly} />
+                                {/* Render Skills only if initialized */}
+                                {(investigator.skills || []).length > 0 && (
+                                    <div className="space-y-6">
+                                        <CharacterSheetSkills skills={investigator.skills} onChange={onSkillChange} isReadOnly={isReadOnly} />
 
-                                    <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
+                                        <hr className="my-6 border-t-2 border-[var(--color-mythos-gold-dim)]/50" />
 
-                                    <CharacterSheetCombat investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <CharacterSheetBackstory investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
-                    )}
-
+                                        <CharacterSheetCombat investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <CharacterSheetBackstory investigator={investigator} onChange={onInfoChange} isReadOnly={isReadOnly} />
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

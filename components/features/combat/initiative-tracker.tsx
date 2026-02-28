@@ -22,7 +22,7 @@ export function InitiativeTracker({ investigators }: InitiativeTrackerProps) {
     if (investigators.length === 0) return null;
 
     return (
-        <div className="bg-[#120a0a]/90 border-l border-t border-b border-[var(--color-mythos-gold-dim)]/30 rounded-l-xl w-64 flex flex-col h-[500px] shadow-2xl overflow-hidden backdrop-blur-md">
+        <div className="bg-[#120a0a]/90 border border-[var(--color-mythos-gold-dim)]/30 rounded-xl w-full flex flex-col h-full shadow-2xl overflow-hidden backdrop-blur-md">
             <div className="bg-black/60 border-b border-[var(--color-mythos-gold-dim)]/20 p-4 shrink-0 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Swords className="w-5 h-5 text-[var(--color-mythos-blood)]" />
