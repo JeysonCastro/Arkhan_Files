@@ -63,54 +63,51 @@ export interface Occupation {
 
 export const OCCUPATIONS_PTBR: Occupation[] = [
     {
-        name: "Investigador Particular",
+        name: "Detetive Particular",
         skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
         skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
         creditRating: { min: 9, max: 30 },
-        skills: [
-            "Arte/Ofício (Fotografia)",
-            "Disfarce",
-            "Direito",
-            "Uso de Biblioteca",
-            "Psicologia",
-            "Encontrar",
-            "Charme", // Ou Lábia, Intimidação, Persuasão
-            "Armas de Fogo (Pistola)" // Ou Luta (Briga)
-        ],
-        description: "Um profissional contratado para resolver mistérios, encontrar pessoas ou descobrir segredos. Foca em habilidades de busca e interação."
+        skills: ["Arte/Ofício", "Disfarce", "Direito", "Uso de Biblioteca", "Lábia", "Psicologia", "Encontrar", "Armas de Fogo (Pistola)"],
+        description: "Um sabujo de aluguel, acostumado a rastrear pessoas na calada da noite e conversar por trás das trincheiras sociais em busca de pistas para quem pagar bem."
+    },
+    {
+        name: "Investigador Particular", // Legacy name
+        skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
+        skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
+        creditRating: { min: 9, max: 30 },
+        skills: ["Arte/Ofício", "Disfarce", "Direito", "Uso de Biblioteca", "Lábia", "Psicologia", "Encontrar", "Armas de Fogo (Pistola)"],
+        description: "Um sabujo de aluguel, rastreando pistas e pessoas."
     },
     {
         name: "Antiquário",
         skillPointsFormula: (edu) => edu * 4,
         skillPointsDescription: "EDU × 4",
         creditRating: { min: 30, max: 70 },
-        skills: [
-            "Avaliação",
-            "Arte/Ofício",
-            "História",
-            "Uso de Biblioteca",
-            "Língua (Outra)",
-            "Encontrar",
-            "Charme",
-            "Navegação"
-        ],
+        skills: ["Avaliação", "Arte/Ofício", "História", "Uso de Biblioteca", "Língua (Outra)", "Charme", "Encontrar", "Ocultismo"],
         description: "Especialista em objetos antigos e livros raros. Possui vasto conhecimento histórico e sabe onde procurar informações."
     },
     {
-        name: "Professor",
+        name: "Autor / Escritor",
+        skillPointsFormula: (edu) => edu * 4,
+        skillPointsDescription: "EDU × 4",
+        creditRating: { min: 9, max: 30 },
+        skills: ["Arte/Ofício", "História", "Uso de Biblioteca", "Mundo Natural", "Ocultismo", "Língua (Própria)", "Psicologia", "Persuasão"],
+        description: "Alguém que vive da palavra escrita, investigando lendas locais e folclore sombrio para alimentar as páginas de suas próximas obras obscuras."
+    },
+    {
+        name: "Professor Universitário",
         skillPointsFormula: (edu) => edu * 4,
         skillPointsDescription: "EDU × 4",
         creditRating: { min: 20, max: 70 },
-        skills: [
-            "Uso de Biblioteca",
-            "Língua (Outra)",
-            "Psicologia",
-            "Arte/Ofício", // placeholder for "Own Field"
-            "Ciência",   // placeholder for "Own Field"
-            "História",   // placeholder for "Own Field"
-            "Charme",
-            "Persuasão"
-        ],
+        skills: ["Uso de Biblioteca", "Língua (Outra)", "Língua (Própria)", "Psicologia", "História", "Ciência", "Antropologia", "Arqueologia"],
+        description: "Um acadêmico cercado de poeira e livros clássicos em universidades ilustres. Seu intelecto é sua maior arma e fardo."
+    },
+    {
+        name: "Professor", // Legacy name
+        skillPointsFormula: (edu) => edu * 4,
+        skillPointsDescription: "EDU × 4",
+        creditRating: { min: 20, max: 70 },
+        skills: ["Uso de Biblioteca", "Língua (Outra)", "Psicologia", "Arte/Ofício", "Ciência", "História", "Charme", "Persuasão"],
         description: "Um acadêmico dedicado ao ensino e pesquisa. Possui alto conhecimento em sua área específica e acesso a bibliotecas."
     },
     {
@@ -118,33 +115,23 @@ export const OCCUPATIONS_PTBR: Occupation[] = [
         skillPointsFormula: (edu) => edu * 4,
         skillPointsDescription: "EDU × 4",
         creditRating: { min: 30, max: 80 },
-        skills: [
-            "Primeiros Socorros",
-            "Medicina",
-            "Psicologia",
-            "Ciência (Biologia)",
-            "Ciência (Farmácia)",
-            "Língua (Latim)",
-            "Charme",
-            "Uso de Biblioteca"
-        ],
+        skills: ["Primeiros Socorros", "Língua (Outra)", "Medicina", "Psicologia", "Ciência", "Persuasão", "Lábia", "Psicanálise"],
         description: "Profissional de saúde dedicado a curar e tratar pacientes. Essencial para manter o grupo vivo e analisar evidências médicas."
     },
     {
-        name: "Jornalista",
+        name: "Jornalista / Repórter",
         skillPointsFormula: (edu) => edu * 4,
         skillPointsDescription: "EDU × 4",
         creditRating: { min: 9, max: 30 },
-        skills: [
-            "Arte/Ofício (Fotografia)",
-            "História",
-            "Uso de Biblioteca",
-            "Língua (Própria)",
-            "Psicologia",
-            "Charme", // Ou Fast Talk
-            "Persuasão",
-            "Encontrar" // Spot Hidden
-        ],
+        skills: ["Arte/Ofício", "História", "Uso de Biblioteca", "Língua (Própria)", "Lábia", "Psicologia", "Encontrar", "Furtividade"],
+        description: "A sede de ser o primeiro a registrar a verdade por trás da manchete dirige sua vida, mesmo se significar se esgueirar em lugares perigosos."
+    },
+    {
+        name: "Jornalista", // Legacy name
+        skillPointsFormula: (edu) => edu * 4,
+        skillPointsDescription: "EDU × 4",
+        creditRating: { min: 9, max: 30 },
+        skills: ["Arte/Ofício", "História", "Uso de Biblioteca", "Língua (Própria)", "Psicologia", "Charme", "Persuasão", "Encontrar"],
         description: "Investigador da verdade, sempre em busca de uma boa história. Tem facilidade em obter informações de pessoas e arquivos."
     },
     {
@@ -152,34 +139,56 @@ export const OCCUPATIONS_PTBR: Occupation[] = [
         skillPointsFormula: (edu, str, dex, pow, app) => edu * 2 + app * 2,
         skillPointsDescription: "EDU × 2 + APA × 2",
         creditRating: { min: 50, max: 99 },
-        skills: [
-            "Arte/Ofício",
-            "Armas de Fogo (Pistola)", // Exemplo
-            "Língua (Outra)",
-            "Cavalgar",
-            "Charme",
-            "Persuasão",
-            "Nível de Crédito",
-            "Intimidação"
-        ],
+        skills: ["Arte/Ofício", "Armas de Fogo (Pistola)", "Armas de Fogo (Rifle/Espingarda)", "Língua (Outra)", "Charme", "Dirigir Automóveis", "Natação"],
         description: "Alguém rico que vive de renda e busca emoções ou hobbies para passar o tempo. Pode financiar expedições e ter contatos influentes."
     },
     {
-        name: "Policial",
+        name: "Policial Detetive",
         skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
         skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
         creditRating: { min: 20, max: 50 },
-        skills: [
-            "Luta (Briga)",
-            "Armas de Fogo (Pistola)",
-            "Primeiros Socorros",
-            "Disfarce", // Ou Navegação? Geralmente não. Keep as is or swap.
-            "Direito",
-            "Psicologia",
-            "Encontrar",
-            "Dirigir Automóveis"
-        ],
-        description: "Membro da força policial, treinado para lidar com crimes e situações perigosas. Possui autoridade e acesso a recursos policiais."
+        skills: ["Disfarce", "Armas de Fogo (Pistola)", "Direito", "Escutar", "Intimidação", "Psicologia", "Encontrar", "Luta (Briga)"],
+        description: "Detetive da polícia, treinado para lidar com crimes e situações perigosas."
+    },
+    {
+        name: "Policial", // Legacy name
+        skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
+        skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
+        creditRating: { min: 20, max: 50 },
+        skills: ["Luta (Briga)", "Armas de Fogo (Pistola)", "Primeiros Socorros", "Disfarce", "Direito", "Psicologia", "Encontrar", "Dirigir Automóveis"],
+        description: "Membro da força policial, treinado para lidar com crimes."
+    },
+    {
+        name: "Ocultista",
+        skillPointsFormula: (edu) => edu * 4,
+        skillPointsDescription: "EDU × 4",
+        creditRating: { min: 9, max: 65 },
+        skills: ["História", "Uso de Biblioteca", "Ocultismo", "Ciência", "Persuasão", "Língua (Outra)", "Antropologia", "Mito de Cthulhu"],
+        description: "Estudioso das artes obscuras, livros amaldiçoados e sociedades secretas."
+    },
+    {
+        name: "Criminoso",
+        skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
+        skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
+        creditRating: { min: 5, max: 65 },
+        skills: ["Luta (Briga)", "Armas de Fogo (Pistola)", "Furtividade", "Consertos Mecânicos", "Intimidação", "Lábia", "Prestidigitação", "Encontrar"],
+        description: "Bandido, mafioso ou ladrão que vive à margem da sociedade civilizada."
+    },
+    {
+        name: "Explorador",
+        skillPointsFormula: (edu, str, dex, pow, app) => edu * 2 + (Math.max(app, dex, str) * 2),
+        skillPointsDescription: "EDU × 2 + (APA, DES ou FOR) × 2",
+        creditRating: { min: 20, max: 70 },
+        skills: ["Navegação", "Esquivar", "Armas de Fogo (Rifle/Espingarda)", "História", "Língua (Outra)", "Mundo Natural", "Sobrevivência", "Saltar"],
+        description: "Aventureiro incansável que viaja pelo mundo desbravando ruínas em selvas remotas e desertos implacáveis."
+    },
+    {
+        name: "Militar / Soldado",
+        skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
+        skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
+        creditRating: { min: 15, max: 50 },
+        skills: ["Luta (Briga)", "Armas de Fogo (Pistola)", "Armas de Fogo (Rifle/Espingarda)", "Primeiros Socorros", "Esquivar", "Furtividade", "Sobrevivência", "Navegação"],
+        description: "Veterano de batalhas que conhece o cheiro de pólvora e a disciplina militar tática."
     }
 ];
 

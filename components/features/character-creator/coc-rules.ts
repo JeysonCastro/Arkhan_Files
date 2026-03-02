@@ -212,6 +212,36 @@ export const Occupations: Occupation[] = [
         classSkills: ["História", "Uso de Bibliotecas", "Ocultismo", "Ciência", "Persuasão", "Línguas Estrangeiras", "Antropologia", "Mitos de Cthulhu", "Nível de Crédito"],
         minCreditRating: 9,
         maxCreditRating: 65
+    },
+    {
+        id: "criminal",
+        name: "Criminoso",
+        description: "Bandido, mafioso ou ladrão pé-de-chinelo. Sobrevive à margem da sociedade civilizada, conhecendo os becos escuros da cidade mais intimamente do que gostaria.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
+        pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
+        classSkills: ["Briga", "Armas de Fogo (Pistola)", "Furtividade", "Conserto Mecânico", "Intimidação", "Lábia (Fast Talk)", "Prestidigitação", "Encontrar", "Nível de Crédito"],
+        minCreditRating: 5,
+        maxCreditRating: 65
+    },
+    {
+        id: "explorer",
+        name: "Explorador",
+        description: "Aventureiro incansável que viaja pelo mundo desbravando ruínas em selvas remotas e desertos implacáveis em busca de relíquias ou fama.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.APP, attrs.DEX, attrs.STR) * 2),
+        pointsFormulaText: "EDU × 2 + (APA, DES ou FOR) × 2",
+        classSkills: ["Navegação", "Esquiva", "Armas de Fogo (Rifle/Escopeta)", "História", "Línguas Estrangeiras", "Mundo Natural", "Sobrevivência", "Pular", "Nível de Crédito"],
+        minCreditRating: 20,
+        maxCreditRating: 70
+    },
+    {
+        id: "military",
+        name: "Militar / Soldado",
+        description: "Veterano de batalhas que conhece o cheiro de pólvora e a disciplina dos quartéis. Possui treinamento tático e físico para lidar com as piores ameaças terrenas.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
+        pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
+        classSkills: ["Briga", "Armas de Fogo (Pistola)", "Armas de Fogo (Rifle/Escopeta)", "Primeiros Socorros", "Esquiva", "Furtividade", "Sobrevivência", "Navegação", "Nível de Crédito"],
+        minCreditRating: 15,
+        maxCreditRating: 50
     }
 ];
 

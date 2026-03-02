@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Map, BookOpen, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const MOCK_TRACKS = [
     {
@@ -38,6 +41,48 @@ const MOCK_TRACKS = [
 
 export default function TracksPage() {
     const router = useRouter();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [localTracks, setLocalTracks] = useState<any[]>(MOCK_TRACKS);
+
+    const [newTrack, setNewTrack] = useState({
+        title: "",
+        type: "Exploração",
+        duration: "1 sessão",
+        difficulty: "Moderada",
+        description: "",
+        scenes: [""]
+    });
+
+    const handleCreateTrack = () => {
+        if (!newTrack.title) return;
+
+        const freshTrack = {
+            id: `tr_${Date.now()}`,
+            ...newTrack,
+            scenes: newTrack.scenes.filter(s => s.trim() !== "")
+        };
+
+        setLocalTracks([freshTrack, ...localTracks]);
+        setIsModalOpen(false);
+        setNewTrack({
+            title: "",
+            type: "Exploração",
+            duration: "1 sessão",
+            difficulty: "Moderada",
+            description: "",
+            scenes: [""]
+        });
+    };
+
+    const handleAddScene = () => {
+        setNewTrack({ ...newTrack, scenes: [...newTrack.scenes, ""] });
+    };
+
+    const handleSceneChange = (index: number, value: string) => {
+        const updatedScenes = [...newTrack.scenes];
+        updatedScenes[index] = value;
+        setNewTrack({ ...newTrack, scenes: updatedScenes });
+    };
 
     return (
         <div className="min-h-[calc(100vh-8rem)] flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -56,13 +101,115 @@ export default function TracksPage() {
                     </div>
                 </div>
 
-                <Button className="bg-blue-900/40 border border-blue-600/50 text-blue-400 hover:bg-blue-600 hover:text-white h-10 px-6 font-serif uppercase tracking-widest text-xs">
-                    Criar Nova Trilha
-                </Button>
+                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button className="bg-blue-900/40 border border-blue-600/50 text-blue-400 hover:bg-blue-600 hover:text-white h-10 px-6 font-serif uppercase tracking-widest text-xs">
+                            Criar Nova Trilha
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#050510] border-blue-900/30 text-stone-200 max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-bold font-heading text-blue-500 tracking-wider">Criar Nova Trilha Narrativa</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono uppercase text-blue-900/80">Título da Trilha</label>
+                                <Input
+                                    value={newTrack.title}
+                                    onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })}
+                                    placeholder="Ex: O Chamado da Floresta Sussurrante"
+                                    className="bg-black/40 border-blue-900/20 text-stone-200"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono uppercase text-blue-900/80">Tipo</label>
+                                    <select
+                                        value={newTrack.type}
+                                        onChange={(e) => setNewTrack({ ...newTrack, type: e.target.value })}
+                                        className="w-full h-10 bg-black/40 border border-blue-900/20 text-stone-200 rounded-md px-3 text-sm focus:border-blue-600 outline-none"
+                                    >
+                                        <option value="Introdução">Introdução</option>
+                                        <option value="Exploração">Exploração</option>
+                                        <option value="Investigação">Investigação</option>
+                                        <option value="Clímax">Clímax</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono uppercase text-blue-900/80">Duração Estimada</label>
+                                    <Input
+                                        value={newTrack.duration}
+                                        onChange={(e) => setNewTrack({ ...newTrack, duration: e.target.value })}
+                                        placeholder="Ex: 1-2 sessões"
+                                        className="bg-black/40 border-blue-900/20 text-stone-200"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-mono uppercase text-blue-900/80">Dificuldade</label>
+                                    <select
+                                        value={newTrack.difficulty}
+                                        onChange={(e) => setNewTrack({ ...newTrack, difficulty: e.target.value })}
+                                        className="w-full h-10 bg-black/40 border border-blue-900/20 text-stone-200 rounded-md px-3 text-sm focus:border-blue-600 outline-none"
+                                    >
+                                        <option value="Baixa">Baixa</option>
+                                        <option value="Moderada">Moderada</option>
+                                        <option value="Alta">Alta</option>
+                                        <option value="Mortal">Mortal</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-mono uppercase text-blue-900/80">Descrição / Gancho</label>
+                                <Textarea
+                                    value={newTrack.description}
+                                    onChange={(e) => setNewTrack({ ...newTrack, description: e.target.value })}
+                                    placeholder="Qual é o mistério principal ou o objetivo dos investigadores?"
+                                    className="bg-black/40 border-blue-900/20 min-h-[80px] font-serif italic text-stone-300"
+                                />
+                            </div>
+
+                            <div className="space-y-2 border-t border-blue-900/20 pt-4 mt-4">
+                                <label className="text-xs font-mono uppercase text-blue-900/80 mb-2 block">Blocos de Cena (Pontos Chave)</label>
+                                {newTrack.scenes.map((scene, index) => (
+                                    <div key={index} className="flex gap-2 mb-2">
+                                        <span className="flex items-center justify-center w-8 h-10 bg-blue-900/20 border border-blue-900/30 rounded text-xs font-mono text-blue-500">
+                                            {index + 1}
+                                        </span>
+                                        <Input
+                                            value={scene}
+                                            onChange={(e) => handleSceneChange(index, e.target.value)}
+                                            placeholder="Ex: Encontro no necrotério..."
+                                            className="bg-black/40 border-blue-900/20 text-stone-200"
+                                        />
+                                    </div>
+                                ))}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleAddScene}
+                                    className="text-blue-500 hover:text-blue-400 hover:bg-blue-900/20 text-xs mt-2"
+                                >
+                                    + Adicionar Cena
+                                </Button>
+                            </div>
+
+                            <Button
+                                onClick={handleCreateTrack}
+                                disabled={!newTrack.title}
+                                className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold uppercase tracking-widest mt-6"
+                            >
+                                Salvar Trilha Narrativa
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {MOCK_TRACKS.map(track => (
+                {localTracks.map(track => (
                     <Card key={track.id} className="bg-[#050510] border border-blue-900/20 rounded-xl overflow-hidden hover:border-blue-500/30 transition-all flex flex-col group">
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
@@ -89,7 +236,7 @@ export default function TracksPage() {
                             <div className="space-y-3">
                                 <h4 className="text-xs font-heading tracking-widest text-blue-900 uppercase">Blocos de Cena</h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {track.scenes.map((scene, idx) => (
+                                    {track.scenes.map((scene: string, idx: number) => (
                                         <div key={idx} className="bg-black/40 border border-blue-900/10 p-3 rounded flex items-center gap-3 group/scene hover:border-blue-900/40 transition-colors">
                                             <span className="text-[10px] font-mono text-blue-900/60">{idx + 1}</span>
                                             <span className="text-xs text-stone-300 group-hover/scene:text-blue-300 transition-colors">{scene}</span>
@@ -105,7 +252,7 @@ export default function TracksPage() {
                 ))}
             </div>
 
-            {MOCK_TRACKS.length === 0 && (
+            {localTracks.length === 0 && (
                 <div className="text-center py-20">
                     <Map className="w-16 h-16 mx-auto text-blue-900/20 mb-4" />
                     <p className="text-stone-500 font-serif italic text-lg">Nenhum rastro foi encontrado nas trilhas.</p>

@@ -167,13 +167,30 @@ export default function ItemLibraryPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-mono uppercase text-[var(--color-mythos-gold-dim)]">Imagem (URL)</label>
-                                        <Input
-                                            value={newItem.image_url}
-                                            onChange={(e: any) => setNewItem({ ...newItem, image_url: e.target.value })}
-                                            placeholder="https://exemplo.com/imagem.png"
-                                            className="bg-black/40 border-[var(--color-mythos-gold-dim)]/20"
-                                        />
+                                        <label className="text-xs font-mono uppercase text-[var(--color-mythos-gold-dim)]">Imagem do Item</label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={newItem.image_url}
+                                                onChange={(e: any) => setNewItem({ ...newItem, image_url: e.target.value })}
+                                                placeholder="URL da imagem ou ->"
+                                                className="bg-black/40 border-[var(--color-mythos-gold-dim)]/20 flex-1"
+                                            />
+                                            <Input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e: any) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            setNewItem({ ...newItem, image_url: reader.result as string });
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                                className="bg-black/40 border-[var(--color-mythos-gold-dim)]/20 w-32 cursor-pointer text-xs p-1"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-mono uppercase text-[var(--color-mythos-gold-dim)]">Descrição Narrativa</label>
