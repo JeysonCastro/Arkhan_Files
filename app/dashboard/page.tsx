@@ -25,16 +25,24 @@ export default function DashboardPage() {
     const [isJoining, setIsJoining] = useState(false);
     const [joinMessage, setJoinMessage] = useState({ text: "", type: "" });
 
+    const [isMounted, setIsMounted] = useState(false);
+
     useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isMounted) return;
+
         if (!isLoading) {
             if (!user) {
-                router.push('/login');
+                router.replace('/login');
                 setIsLoadingData(false);
             } else {
                 fetchInvestigators();
             }
         }
-    }, [user, isLoading, router]);
+    }, [user, isLoading, isMounted, router]);
 
     const fetchInvestigators = async () => {
         try {
@@ -165,7 +173,7 @@ export default function DashboardPage() {
         }
     };
 
-    if (isLoading || !user || isLoadingData) return <LoadingScreen message="Consultando os Arquivos..." />;
+    if (!isMounted || isLoading || !user || isLoadingData) return <LoadingScreen message="Consultando os Arquivos..." />;
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-[var(--color-mythos-parchment)] selection:bg-[var(--color-mythos-gold)] selection:text-black">

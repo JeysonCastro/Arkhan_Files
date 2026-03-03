@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { Plus, Play, Database, FileText, Settings, Users, Ghost } from "lucide-react";
+import { Plus, Play, Database, FileText, Settings, Users, Ghost, Edit2, Trash2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,21 +23,34 @@ export default function GMDashboard() {
     const [editingSession, setEditingSession] = useState<any>(null);
     const [editedSessionName, setEditedSessionName] = useState("");
 
+    // Delete state
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [sessionToDelete, setSessionToDelete] = useState<any>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Auth Protection
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
+    const [isMounted, setIsMounted] = useState(false);
+
     useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isMounted) return;
+
         if (!isLoading) {
             if (!user) {
-                router.push('/login');
+                router.replace('/login');
             } else if (user.role !== 'KEEPER') {
-                router.push('/dashboard'); // Kick players back to their dashboard
+                router.replace('/dashboard'); // Kick players back to their dashboard
             } else {
                 fetchSessions();
             }
         }
-    }, [user, isLoading, router]);
+    }, [user, isLoading, isMounted, router]);
 
     const fetchSessions = async () => {
         try {
@@ -109,7 +122,30 @@ export default function GMDashboard() {
         }
     };
 
-    if (isLoading || !user || user.role !== 'KEEPER') return <LoadingScreen message="Acessando o Cofre do Guardião..." />;
+    const handleDeleteSession = async () => {
+        if (!sessionToDelete) return;
+        setIsDeleting(true);
+
+        try {
+            const { error } = await supabase
+                .from('sessions')
+                .delete()
+                .eq('id', sessionToDelete.id);
+
+            if (error) throw error;
+
+            setSessions(sessions.filter(s => s.id !== sessionToDelete.id));
+            setIsDeleteModalOpen(false);
+            setSessionToDelete(null);
+        } catch (err) {
+            console.error("Error deleting session:", err);
+            alert("Erro ao excluir sessão.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    if (!isMounted || isLoading || !user || user.role !== 'KEEPER') return <LoadingScreen message="Acessando o Cofre do Guardião..." />;
 
     return (
         <div className="min-h-[calc(100vh-8rem)] flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -183,24 +219,40 @@ export default function GMDashboard() {
                                     key={session.id}
                                     className="bg-black/60 border border-[var(--color-mythos-gold-dim)]/30 p-6 rounded-xl hover:border-[var(--color-mythos-gold)]/60 transition-all group relative overflow-hidden flex flex-col"
                                 >
-                                    <div className="absolute top-0 right-0 p-4 opacity-40 group-hover:opacity-100 transition-opacity w-24 h-24">
+                                    {/* Image with mix-blend-screen to remove black bg and pointer-events-none to let clicks pass through */}
+                                    <div className="absolute top-0 right-0 p-4 opacity-40 group-hover:opacity-100 transition-opacity w-32 h-32 pointer-events-none mix-blend-screen">
                                         <Image src="/assets/session-bg.png" alt="Card Background" fill className="object-contain" />
                                     </div>
                                     <div className="relative z-10 flex-1">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-xl font-bold font-heading tracking-wider text-[var(--color-mythos-parchment)] mb-1 pr-6">{session.name}</h3>
-                                            <button
-                                                onClick={() => {
-                                                    setEditingSession(session);
-                                                    setEditedSessionName(session.name);
-                                                    setIsEditModalOpen(true);
-                                                }}
-                                                className="text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)] text-xs font-mono underline opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                Editar
-                                            </button>
+                                        <div className="flex justify-between items-start relative">
+                                            <h3 className="text-xl font-bold font-heading tracking-wider text-[var(--color-mythos-parchment)] mb-1 pr-20">{session.name}</h3>
+
+                                            {/* Action buttons properly separated and styled */}
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute top-0 right-0 z-20">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingSession(session);
+                                                        setEditedSessionName(session.name);
+                                                        setIsEditModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)] bg-black/80 hover:bg-black rounded border border-[var(--color-mythos-gold-dim)]/30 backdrop-blur-sm transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                                                    title="Editar Sessão"
+                                                >
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setSessionToDelete(session);
+                                                        setIsDeleteModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-red-900/70 hover:text-red-500 bg-black/80 hover:bg-black rounded border border-red-900/30 hover:border-red-500/50 backdrop-blur-sm transition-all shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                                                    title="Excluir Sessão"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <p className="text-[var(--color-mythos-gold-dim)] font-mono text-xs bg-black/50 inline-block px-2 py-1 rounded border border-[var(--color-mythos-gold-dim)]/20 mt-2">
+                                        <p className="text-[var(--color-mythos-gold-dim)] font-mono text-xs bg-black/50 inline-block px-2 py-1 rounded border border-[var(--color-mythos-gold-dim)]/20 mt-2 relative z-10">
                                             Convite: <span className="text-[var(--color-mythos-gold)] font-bold">{session.invite_code}</span>
                                         </p>
                                     </div>
@@ -242,6 +294,45 @@ export default function GMDashboard() {
                                 >
                                     Salvar Alterações
                                 </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Delete Session Modal */}
+                    <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                        <DialogContent className="bg-[#0a0505] border-red-900/30 text-[var(--color-mythos-parchment)] max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-bold font-heading text-red-500 tracking-wider flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5" />
+                                    Excluir Sessão
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <p className="text-stone-400 text-sm font-serif">
+                                    Tem certeza que deseja excluir a sessão <span className="text-[var(--color-mythos-parchment)] font-bold">"{sessionToDelete?.name}"</span>?
+                                </p>
+                                <p className="text-red-900/80 text-xs font-mono">
+                                    Esta ação não pode ser desfeita e todos os dados vinculados a esta sessão serão perdidos.
+                                </p>
+                                <div className="flex gap-4 mt-6">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setIsDeleteModalOpen(false);
+                                            setSessionToDelete(null);
+                                        }}
+                                        className="flex-1 border border-stone-800 hover:bg-stone-900 text-stone-400 font-mono text-xs uppercase"
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        onClick={handleDeleteSession}
+                                        disabled={isDeleting}
+                                        className="flex-1 bg-red-900 hover:bg-red-800 text-white font-bold uppercase tracking-widest border border-red-950 text-xs"
+                                    >
+                                        {isDeleting ? "Excluindo..." : "Excluir"}
+                                    </Button>
+                                </div>
                             </div>
                         </DialogContent>
                     </Dialog>
