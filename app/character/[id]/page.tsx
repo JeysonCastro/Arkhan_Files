@@ -89,6 +89,9 @@ export default function CharacterSheetPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading) return;
+        if (!user) return;
+
         const loadCharacter = async () => {
             if (params.id === 'new') {
                 setIsNew(true);
@@ -113,6 +116,12 @@ export default function CharacterSheetPage() {
                         .single();
 
                     if (data && !error) {
+                        if (data.user_id !== user.id) {
+                            alert("Acesso negado. Você não é o detetive responsável por esta ficha.");
+                            router.push('/dashboard');
+                            return;
+                        }
+
                         setInvestigator({
                             ...INITIAL_INVESTIGATOR,
                             ...data.data,
@@ -123,17 +132,7 @@ export default function CharacterSheetPage() {
                     }
                 } catch (err) {
                     console.error("Error loading character", err);
-                    // Initialize blank or show error - for now, safe default
-                    setInvestigator({
-                        ...INITIAL_INVESTIGATOR,
-                        id: params.id as string,
-                        skills: BASE_SKILLS_PTBR.map(s => ({
-                            name: s.name,
-                            baseChance: s.baseChance,
-                            pointsAdded: 0,
-                            checked: false
-                        }))
-                    });
+                    router.push('/dashboard');
                 } finally {
                     setIsLoading(false);
                 }
@@ -141,7 +140,7 @@ export default function CharacterSheetPage() {
         };
 
         loadCharacter();
-    }, [params.id]);
+    }, [params.id, user, authLoading, router]);
 
     const saveCharacter = async () => {
         if (!user) {

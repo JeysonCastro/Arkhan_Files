@@ -7,7 +7,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="min-h-screen bg-[var(--background)]">
+        <div className="min-h-screen">
             <header className="border-b border-[var(--color-mythos-gold-dim)]/50 bg-[var(--color-mythos-dark-green)]/95 sticky top-0 z-50 backdrop-blur-sm shadow-md">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2 text-[var(--color-mythos-gold)] hover:text-[var(--color-mythos-parchment)] transition-colors group">
