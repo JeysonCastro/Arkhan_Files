@@ -69,6 +69,7 @@ export const BaseSkills: Skill[] = [
     { name: "Antropologia", base: 1, category: "Mental", description: "O estudo das culturas humanas, seus costumes, crenças e organizações sociais." },
     { name: "Armas de Fogo (Pistola)", base: 20, category: "Combate", description: "Capacidade de disparar revólveres e pistolas semiautomáticas com precisão." },
     { name: "Armas de Fogo (Rifle/Escopeta)", base: 25, category: "Combate", description: "Uso de armas de cano longo como fuzis, rifles de caça e espingardas." },
+    { name: "Armas de Fogo (Submetralhadora)", base: 15, category: "Combate", description: "Capacidade de manejar e disparar de forma controlada ou em rajadas usando submetralhadoras pesadas e leves." },
     { name: "Arqueologia", base: 1, category: "Mental", description: "Estudo e datação de artefatos antigos e ruínas de civilizações passadas." },
     { name: "Arremessar", base: 20, category: "Físico", description: "A precisão e força ao jogar objetos, desde granadas até pedras." },
     { name: "Arte/Ofício", base: 5, category: "Criativo", description: "Habilidade de criar algo estético ou funcional: pintar, forjar, atuar, etc." },
@@ -241,6 +242,26 @@ export const Occupations: Occupation[] = [
         pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
         classSkills: ["Briga", "Armas de Fogo (Pistola)", "Armas de Fogo (Rifle/Escopeta)", "Primeiros Socorros", "Esquiva", "Furtividade", "Sobrevivência", "Navegação", "Nível de Crédito"],
         minCreditRating: 15,
+        maxCreditRating: 50
+    },
+    {
+        id: "cook",
+        name: "Cozinheiro",
+        description: "Experiente em lidar com facas e panelas, do calor sufocante das cozinhas de Arkham aos caldos suspeitos de Innsmouth.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (Math.max(attrs.STR, attrs.DEX) * 2),
+        pointsFormulaText: "EDU × 2 + (FOR ou DES) × 2",
+        classSkills: ["Arte/Ofício", "Ciência", "Esquiva", "Primeiros Socorros", "Encontrar", "Ouvir", "Briga", "Sobrevivência", "Nível de Crédito"],
+        minCreditRating: 9,
+        maxCreditRating: 30
+    },
+    {
+        id: "artist",
+        name: "Artista",
+        description: "Pintores, escultores ou músicos, dedicados a extrair as verdadeiras, porém horripilantes, formas cósmicas da essência mundana.",
+        calculateOccupationalPoints: (attrs) => (attrs.EDU * 2) + (attrs.POW * 2),
+        pointsFormulaText: "EDU × 2 + POD × 2",
+        classSkills: ["Arte/Ofício", "História", "Ocultismo", "Psicologia", "Encontrar", "Charme", "Ouvir", "Persuasão", "Nível de Crédito"],
+        minCreditRating: 9,
         maxCreditRating: 50
     }
 ];
