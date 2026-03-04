@@ -265,21 +265,8 @@ export default function PlayerSessionView() {
         };
     }, [params.id, isLoadingData]);
 
-    // --- MODO BRUTO E GROTESCO: Polling de Segurança ---
-    useEffect(() => {
-        if (!params.id || isLoadingData) return;
-
-        console.log("[GROTESCO] Iniciando Polling de Segurança (1.5s)");
-        const interval = setInterval(() => {
-            console.log("[GROTESCO] Executando refresh automático de segurança...");
-            fetchSessionData(true);
-        }, 1500);
-
-        return () => {
-            console.log("[GROTESCO] Parando Polling de Segurança");
-            clearInterval(interval);
-        };
-    }, [params.id, isLoadingData]);
+    // O Polling de Segurança foi desativado em prol da performance. 
+    // O sistema agora confia integralmente nos Sockets Realtime (WebSockets) do Supabase.
 
     const isLightsOut = sessionData?.is_lights_out;
 
