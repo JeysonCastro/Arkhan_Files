@@ -11,6 +11,7 @@ import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { InvestigatorBadge } from "@/components/ui/investigator-badge";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { AvatarCreator } from "@/components/features/avatar/avatar-creator";
 
 export default function DashboardPage() {
     const { user, isLoading } = useAuth();
@@ -273,8 +274,8 @@ export default function DashboardPage() {
                                 {/* Photo Container */}
                                 <div className="relative aspect-square w-full min-w-[200px] bg-stone-900 overflow-hidden border-2 border-black/10 shadow-inner">
                                     {inv.avatar ? (
-                                        <div className="w-full h-full scale-125 translate-y-2 grayscale-[0.3] sepia-[0.2]">
-                                            <Skull className="absolute inset-0 m-auto w-16 h-16 text-[var(--color-mythos-gold-dim)]/20" />
+                                        <div className="w-full h-full scale-110 translate-y-2 pointer-events-none">
+                                            <AvatarCreator config={inv.avatar} readonly={true} />
                                         </div>
                                     ) : inv.portrait ? (
                                         <img

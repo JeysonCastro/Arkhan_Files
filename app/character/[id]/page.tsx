@@ -92,8 +92,11 @@ export default function CharacterSheetPage() {
         if (authLoading) return;
         if (!user) return;
 
+        console.log(`[CharacterSheet] Attempting to load character ID:`, params.id);
+
         const loadCharacter = async () => {
             if (params.id === 'new') {
+                console.log("[CharacterSheet] Inicializando nova ficha em branco.");
                 setIsNew(true);
                 setInvestigator({
                     ...INITIAL_INVESTIGATOR,
@@ -108,6 +111,7 @@ export default function CharacterSheetPage() {
                 setIsLoading(false);
             } else {
                 // Load from Supabase
+                console.log(`[CharacterSheet] Fetching ficha do Supabase para ID:`, params.id);
                 try {
                     const { data, error } = await supabase
                         .from('investigators')
@@ -116,22 +120,26 @@ export default function CharacterSheetPage() {
                         .single();
 
                     if (data && !error) {
+                        console.log(`[CharacterSheet] Dados da ficha recebidos com sucesso. Pertence a user:`, data.user_id);
                         if (data.user_id !== user.id) {
+                            console.warn(`[CharacterSheet] Bloqueio de acesso! Ficha pertence a ${data.user_id}, logado como ${user.id}`);
                             alert("Acesso negado. Você não é o detetive responsável por esta ficha.");
                             router.push('/dashboard');
                             return;
                         }
 
+                        console.log(`[CharacterSheet] Formatando JSONB 'data' para Invesigator local.`);
                         setInvestigator({
                             ...INITIAL_INVESTIGATOR,
                             ...data.data,
                             id: data.id // Ensure ID matches DB
                         });
                     } else {
+                        console.error(`[CharacterSheet] Falha na query para a ficha db. Erro:`, error);
                         throw error || new Error("Not found");
                     }
                 } catch (err) {
-                    console.error("Error loading character", err);
+                    console.error("[CharacterSheet] Exception catch na requisição do personagem:", err);
                     router.push('/dashboard');
                 } finally {
                     setIsLoading(false);

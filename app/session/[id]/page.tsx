@@ -62,6 +62,7 @@ export default function PlayerSessionView() {
     const fetchSessionData = async (isSilent = false) => {
         const sessionId = params.id as string;
         if (!isSilent) setIsLoadingData(true);
+        console.log(`[PlayerSession] Fetching session data for: ${sessionId} (Silent: ${isSilent})`);
 
         try {
             // 1. Fetch Session Info
@@ -71,7 +72,11 @@ export default function PlayerSessionView() {
                 .eq('id', sessionId)
                 .single();
 
-            if (sessionError) throw sessionError;
+            if (sessionError) {
+                console.error("[PlayerSession] Erro ao buscar info global da sessão:", sessionError);
+                throw sessionError;
+            }
+            console.log("[PlayerSession] Session info loaded:", sessionInfo);
             setSessionData(sessionInfo);
 
             // 2. Fetch all characters in this session via junction table
@@ -123,6 +128,7 @@ export default function PlayerSessionView() {
                 })
                 .filter((c: unknown) => c !== null) as any[];
 
+            console.log(`[PlayerSession] Mapped ${mappedCompanions.length} companions na mesa.`);
             mappedCompanions.sort((a, b) => (a.isCurrentUser === b.isCurrentUser) ? 0 : a.isCurrentUser ? -1 : 1);
 
             setCompanions(mappedCompanions);
@@ -130,7 +136,7 @@ export default function PlayerSessionView() {
             setLastSync(new Date().toLocaleTimeString());
             console.log(`[GROTESCO] Sync OK. Render: ${syncTick + 1}`);
         } catch (err) {
-            console.error("Error fetching session:", err);
+            console.error("[PlayerSession] Error fetching session:", err);
             if (!isSilent) router.push('/dashboard');
         } finally {
             if (!isSilent) setIsLoadingData(false);

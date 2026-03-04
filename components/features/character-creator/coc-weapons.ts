@@ -9,6 +9,7 @@ export type Weapon = {
     malfunction: number;
     description?: string;
     imageUrl?: string;
+    price: number;
 };
 
 export const StandardWeapons: Weapon[] = [
@@ -23,7 +24,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: "-",
         malfunction: 100,
         description: "Ataque corpo-a-corpo básico sem armas.",
-        imageUrl: "/assets/weapons/wpn_brass_knuckles_1771891066203.png"
+        imageUrl: "/assets/weapons/wpn_brass_knuckles_1771891066203.png",
+        price: 0
     },
     {
         id: "knife_small",
@@ -35,7 +37,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: "-",
         malfunction: 100,
         description: "Fácil de esconder, comum em becos de Arkham.",
-        imageUrl: "/assets/weapons/wpn_knife_small_1771891082367.png"
+        imageUrl: "/assets/weapons/wpn_knife_small_1771891082367.png",
+        price: 15
     },
     {
         id: "machete",
@@ -47,7 +50,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: "-",
         malfunction: 100,
         description: "Arma brutal usada para desbravar matas ou cultistas.",
-        imageUrl: "/assets/weapons/wpn_machete_1771891098882.png"
+        imageUrl: "/assets/weapons/wpn_machete_1771891098882.png",
+        price: 25
     },
     {
         id: "baseball_bat",
@@ -59,7 +63,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: "-",
         malfunction: 100,
         description: "Objeto contundente de fácil acesso.",
-        imageUrl: "/assets/weapons/wpn_baseball_bat_1771891128122.png"
+        imageUrl: "/assets/weapons/wpn_baseball_bat_1771891128122.png",
+        price: 20
     },
     {
         id: "sword",
@@ -71,7 +76,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: "-",
         malfunction: 100,
         description: "Antiga herança de família ou roubada de um museu.",
-        imageUrl: "/assets/weapons/wpn_sword_1771891146214.png"
+        imageUrl: "/assets/weapons/wpn_sword_1771891146214.png",
+        price: 150
     },
 
     // --- FIREARMS (HANDGUNS) ---
@@ -85,7 +91,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 6,
         malfunction: 100,
         description: "Pistola leve de bolso.",
-        imageUrl: "/assets/weapons/wpn_pistol_22_1771891163546.png"
+        imageUrl: "/assets/weapons/wpn_pistol_22_1771891163546.png",
+        price: 80
     },
     {
         id: "revolver_38",
@@ -97,7 +104,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 6,
         malfunction: 100,
         description: "Arma padrão de detetives e oficiais de polícia.",
-        imageUrl: "/assets/weapons/wpn_revolver_38.png"
+        imageUrl: "/assets/weapons/wpn_revolver_38.png",
+        price: 120
     },
     {
         id: "m1911",
@@ -109,7 +117,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 7,
         malfunction: 98,
         description: "Pistola militar de alto impacto, comum entre veteranos.",
-        imageUrl: "/assets/weapons/wpn_m1911_1771891190599.png"
+        imageUrl: "/assets/weapons/wpn_m1911_1771891190599.png",
+        price: 200
     },
 
     // --- FIREARMS (RIFLES & SHOTGUNS) ---
@@ -123,7 +132,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 2,
         malfunction: 100,
         description: "Pode disparar ambos os canos de uma vez. Dano varia com a distância.",
-        imageUrl: "/assets/weapons/wpn_shotgun_db_1771891205575.png"
+        imageUrl: "/assets/weapons/wpn_shotgun_db_1771891205575.png",
+        price: 180
     },
     {
         id: "shotgun_12g_pump",
@@ -135,7 +145,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 5,
         malfunction: 100,
         description: "Mortal a curta distância. Maior capacidade de munição.",
-        imageUrl: "/assets/weapons/wpn_shotgun_pump_1771891225650.png"
+        imageUrl: "/assets/weapons/wpn_shotgun_pump_1771891225650.png",
+        price: 250
     },
     {
         id: "rifle_3006",
@@ -147,7 +158,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 5,
         malfunction: 100,
         description: "Rifle de longo alcance e alto dano perfurante.",
-        imageUrl: "/assets/weapons/wpn_rifle_3006_1771891253192.png"
+        imageUrl: "/assets/weapons/wpn_rifle_3006_1771891253192.png",
+        price: 300
     },
     {
         id: "elephant_gun",
@@ -159,7 +171,8 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 2,
         malfunction: 100,
         description: "Uma monstruosidade cara disparando cartuchos colossais.",
-        imageUrl: "/assets/weapons/wpn_elephant_gun_1771891270709.png"
+        imageUrl: "/assets/weapons/wpn_elephant_gun_1771891270709.png",
+        price: 900
     },
 
     // --- HEAVY / SMG ---
@@ -173,6 +186,7 @@ export const StandardWeapons: Weapon[] = [
         bulletsInGun: 50,
         malfunction: 96,
         description: "O icônico 'Chicago Typewriter', cospe balas a uma taxa assustadora.",
-        imageUrl: "/assets/weapons/wpn_tommy_gun_1771891287739.png"
+        imageUrl: "/assets/weapons/wpn_tommy_gun_1771891287739.png",
+        price: 1200
     }
 ];

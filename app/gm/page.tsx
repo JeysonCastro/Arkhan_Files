@@ -53,6 +53,7 @@ export default function GMDashboard() {
     }, [user, isLoading, isMounted, router]);
 
     const fetchSessions = async () => {
+        console.log("[GM_Dashboard] Iniciando fetchSessions para keeper_id:", user?.id);
         try {
             const { data, error } = await supabase
                 .from('sessions')
@@ -60,16 +61,21 @@ export default function GMDashboard() {
                 .eq('keeper_id', user?.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                console.error("[GM_Dashboard] Erro no fetchSessions do Supabase:", error);
+                throw error;
+            }
+            console.log(`[GM_Dashboard] Fetched ${data?.length || 0} sessões ativas.`);
             setSessions(data || []);
         } catch (err) {
-            console.error("Error fetching sessions:", err);
+            console.error("[GM_Dashboard] Exception caught no fetchSessions:", err);
         }
     };
 
     const handleCreateSession = async () => {
         if (!user || !newSessionName) return;
         setIsCreatingSession(true);
+        console.log(`[GM_Dashboard] Criando nova sessão: "${newSessionName}" por keeper_id: ${user.id}`);
         // Generate a 6-character alphanumeric code
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -84,15 +90,19 @@ export default function GMDashboard() {
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error("[GM_Dashboard] Erro ao inserir nova sessão no Supabase:", error);
+                throw error;
+            }
 
+            console.log("[GM_Dashboard] Sessão criada com sucesso. Redirecionando para ID:", data.id);
             setSessions([data, ...sessions]);
             setIsCreateModalOpen(false);
             setNewSessionName("");
             // Automatically enter the new session
             router.push(`/gm/session/${data.id}`);
         } catch (err) {
-            console.error("Error creating session:", err);
+            console.error("[GM_Dashboard] Exception caught ao criar sessão:", err);
             alert("Erro ao criar sessão. Tente novamente.");
         } finally {
             setIsCreatingSession(false);
@@ -125,6 +135,7 @@ export default function GMDashboard() {
     const handleDeleteSession = async () => {
         if (!sessionToDelete) return;
         setIsDeleting(true);
+        console.log(`[GM_Dashboard] Solicitando deleção da sessão ID: ${sessionToDelete.id}`);
 
         try {
             const { error } = await supabase
@@ -132,13 +143,17 @@ export default function GMDashboard() {
                 .delete()
                 .eq('id', sessionToDelete.id);
 
-            if (error) throw error;
+            if (error) {
+                console.error("[GM_Dashboard] Erro ao excluir sessão do Supabase:", error);
+                throw error;
+            }
 
+            console.log("[GM_Dashboard] Sessão excluída com sucesso.");
             setSessions(sessions.filter(s => s.id !== sessionToDelete.id));
             setIsDeleteModalOpen(false);
             setSessionToDelete(null);
         } catch (err) {
-            console.error("Error deleting session:", err);
+            console.error("[GM_Dashboard] Exception caught ao deletar sessão:", err);
             alert("Erro ao excluir sessão.");
         } finally {
             setIsDeleting(false);

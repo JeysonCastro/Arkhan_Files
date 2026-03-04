@@ -27,20 +27,7 @@ export default function NewCharacterPage() {
                     name: characterData.name,
                     occupation: characterData.occupation,
                     user_id: user.id, // Reverted: using user_id to match Supabase schema defined in supabase_schema.sql
-                    data: { // Correct column for JSON is data
-                        age: characterData.age,
-                        gender: characterData.gender,
-                        attributes: characterData.attributes,
-                        avatar: characterData.avatar,
-                        skills: characterData.skills,
-                        inventory: characterData.inventory,
-                        // Adaptação para a estrutura de sanidade antiga do projeto (se existir)
-                        derivedStats: {
-                            sanity: { current: characterData.attributes.SANITY, max: characterData.attributes.MAX_SANITY },
-                            hp: { current: characterData.attributes.HP, max: characterData.attributes.MAX_HP },
-                            mp: { current: characterData.attributes.MP, max: characterData.attributes.MAX_MP }
-                        }
-                    }
+                    data: characterData
                 }])
                 .select();
 
@@ -52,11 +39,14 @@ export default function NewCharacterPage() {
                 return;
             }
 
+            console.log("[NewCharacter] Personagem salvo com sucesso:", data);
+
             // Redireciona para o painel
             router.push('/dashboard');
         } catch (err) {
-            console.error("Error creating character:", err);
-            alert("Erro Inesperado");
+            console.error("[NewCharacter] Erro Inesperado:", err);
+            alert("Erro Inesperado ao salvar");
+        } finally {
             setIsSaving(false);
         }
     };

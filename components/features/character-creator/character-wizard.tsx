@@ -17,6 +17,10 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
     const [occupation, setOccupation] = useState('');
     const [gender, setGender] = useState('');
 
+    // Configurações do Modal de Gênero
+    const [showGenderModal, setShowGenderModal] = useState(false);
+    const [customGender, setCustomGender] = useState('');
+
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(defaultAvatarConfig);
 
     // Atributos
@@ -78,6 +82,23 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
     const roll3d6 = () => Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
     const roll2d6plus6 = () => Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1 + 6;
 
+    const creditRatingPoints = baseSkills["Nível de Crédito"] + (occPointsSpent["Nível de Crédito"] || 0) + (persPointsSpent["Nível de Crédito"] || 0);
+
+    let baseCash = 0;
+    let spendingLevel = 0;
+    if (creditRatingPoints >= 99) { baseCash = 50000; spendingLevel = 5000; }
+    else if (creditRatingPoints >= 90) { baseCash = creditRatingPoints * 200; spendingLevel = 250; }
+    else if (creditRatingPoints >= 50) { baseCash = creditRatingPoints * 50; spendingLevel = 100; }
+    else if (creditRatingPoints >= 10) { baseCash = creditRatingPoints * 10; spendingLevel = 20; }
+    else if (creditRatingPoints >= 1) { baseCash = creditRatingPoints * 5; spendingLevel = 10; }
+
+    const weaponsCost = selectedWeapons.reduce((total, id) => {
+        const w = StandardWeapons.find(sw => sw.id === id);
+        return total + (w?.price || 0);
+    }, 0);
+
+    const currentCash = baseCash - weaponsCost;
+
     const handleRollAttributes = () => {
         const p3: PoolDraftValue[] = Array.from({ length: 5 }).map(() => ({ id: Math.random().toString(), value: roll3d6() * 5 }));
         const p2: PoolDraftValue[] = Array.from({ length: 3 }).map(() => ({ id: Math.random().toString(), value: roll2d6plus6() * 5 }));
@@ -104,28 +125,77 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
 
     const isAllAssigned = hasRolled && Object.values(attributeAssignments).every(v => v !== null) && luckRoll !== null;
 
+    const inclusiveGenders = [
+        { name: "Homem Cisgênero", desc: "Se identifica com o gênero masculino e seu sexo atribuído ao nascer foi masculino." },
+        { name: "Mulher Cisgênero", desc: "Se identifica com o gênero feminino e seu sexo atribuído ao nascer foi feminino." },
+        { name: "Homem Transgênero", desc: "Se identifica com o gênero masculino, mas seu sexo atribuído ao nascer foi feminino." },
+        { name: "Mulher Transgênero", desc: "Se identifica com o gênero feminino, mas seu sexo atribuído ao nascer foi masculino." },
+        { name: "Não-Binário", desc: "Termo guarda-chuva para identidades que variam além do binarismo masculino/feminino." },
+        { name: "Gênero Fluido", desc: "Sua identidade ou expressão de gênero muda ao longo do tempo ou situações." },
+        { name: "Agênero", desc: "Não se identifica com nenhum gênero, sentindo a ausência de um gênero específico." },
+        { name: "Personalizado", desc: "Preencha um gênero que melhor representa quem o investigador é." }
+    ];
+
     const handleFinish = () => {
+        const finalAttributes = {
+            STR: { base: attributes.STR, current: attributes.STR },
+            CON: { base: attributes.CON, current: attributes.CON },
+            SIZ: { base: attributes.SIZ, current: attributes.SIZ },
+            DEX: { base: attributes.DEX, current: attributes.DEX },
+            APP: { base: attributes.APP, current: attributes.APP },
+            INT: { base: attributes.INT, current: attributes.INT },
+            POW: { base: attributes.POW, current: attributes.POW },
+            EDU: { base: attributes.EDU, current: attributes.EDU },
+            LUCK: { base: attributes.LUCK, current: attributes.LUCK }
+        };
+
+        const finalDerived = {
+            hp: { max: derivedStats.hp, current: derivedStats.hp },
+            sanity: { max: 99, current: derivedStats.sanity, start: derivedStats.sanity },
+            magicPoints: { max: derivedStats.mp, current: derivedStats.mp },
+            moveRate: derivedStats.mov,
+            build: derivedStats.build,
+            damageBonus: derivedStats.damageBonus
+        };
+
+        const finalSkills = BaseSkills.map(s => {
+            const added = (occPointsSpent[s.name] || 0) + (persPointsSpent[s.name] || 0);
+            return {
+                name: s.name,
+                baseChance: baseSkills[s.name],
+                pointsAdded: added,
+                checked: false
+            };
+        });
+
+        const finalWeapons = selectedWeapons.map(id => {
+            const w = StandardWeapons.find(sw => sw.id === id);
+            if (!w) return null;
+            return {
+                name: w.name,
+                skill: w.skill,
+                damage: w.damage,
+                range: w.baseRange,
+                attacks: typeof w.usesPerRound === 'number' ? w.usesPerRound : 1,
+                ammo: w.bulletsInGun.toString(),
+                malfunction: w.malfunction,
+                description: w.description
+            };
+        }).filter(Boolean);
+
         const newCharacter = {
             name,
             age: parseInt(age),
-            gender,
+            sex: gender,
             occupation: selectedOccupation?.name || occupation,
-            attributes: {
-                ...attributes,
-                HP: derivedStats.hp,
-                MAX_HP: derivedStats.hp,
-                MP: derivedStats.mp,
-                MAX_MP: derivedStats.mp,
-                SANITY: derivedStats.sanity,
-                MAX_SANITY: derivedStats.sanity
-            },
-            skills: Object.keys(baseSkills).reduce((acc, skillName) => {
-                const total = baseSkills[skillName] + (occPointsSpent[skillName] || 0) + (persPointsSpent[skillName] || 0);
-                if (total > baseSkills[skillName]) acc[skillName] = total; // Only save modified skills to save space
-                return acc;
-            }, {} as Record<string, number>),
-            inventory: selectedWeapons.map(id => StandardWeapons.find(w => w.id === id)).filter(Boolean),
-            avatar: avatarConfig
+            attributes: finalAttributes,
+            derivedStats: finalDerived,
+            skills: finalSkills,
+            weapons: finalWeapons,
+            gear: [],
+            avatar: avatarConfig,
+            cash: currentCash,
+            spendingLevel: spendingLevel
         };
 
         onComplete(newCharacter);
@@ -171,12 +241,69 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-[var(--color-mythos-gold-dim)] uppercase">Gênero</label>
-                                    <input
-                                        className="vintage-input w-full"
-                                        value={gender} onChange={e => setGender(e.target.value)}
-                                        placeholder="Masculino, Feminino..."
-                                    />
+                                    <div
+                                        onClick={() => setShowGenderModal(true)}
+                                        className="vintage-input w-full cursor-pointer flex justify-between items-center bg-[#111] hover:bg-black/60 min-h-[46px]"
+                                    >
+                                        <span className={gender ? 'text-white' : 'text-gray-500'}>{gender || "Selecionar Identidade..."}</span>
+                                        <span className="text-[var(--color-mythos-gold-dim)] font-serif rotate-90 pr-2">{'>'}</span>
+                                    </div>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal de Gênero (Exibido apenas no Passo 1) */}
+                    {showGenderModal && step === 1 && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                            <div className="bg-[#111] border-2 border-[var(--color-mythos-gold-dim)] max-w-2xl w-full p-6 relative max-h-[85vh] overflow-y-auto shadow-2xl">
+                                <button onClick={() => setShowGenderModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white font-bold text-xl">X</button>
+                                <h3 className="text-2xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest text-shadow-sm mb-2">Identidade de Gênero</h3>
+                                <p className="text-sm text-gray-400 font-serif italic mb-6">Em meio ao abismo cósmico, as definições humanas evoluem. Selecione como o investigador se identifica. (Opção livre e sem impacto numérico)</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {inclusiveGenders.map(g => (
+                                        <div
+                                            key={g.name}
+                                            onClick={() => {
+                                                if (g.name !== "Personalizado") {
+                                                    setGender(g.name);
+                                                    setShowGenderModal(false);
+                                                } else {
+                                                    setGender("Personalizado");
+                                                }
+                                            }}
+                                            className={`p-3 border transition-colors cursor-pointer flex flex-col justify-center ${gender === g.name ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]/10' : 'border-gray-800 bg-[#1a1414] hover:border-gray-500'}`}
+                                        >
+                                            <h4 className={`font-bold ${gender === g.name ? 'text-[var(--color-mythos-gold)]' : 'text-gray-300'}`}>{g.name}</h4>
+                                            <p className="text-[11px] text-gray-500 leading-tight mt-1 font-sans">{g.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {gender === "Personalizado" && (
+                                    <div className="mt-6 p-4 border border-[var(--color-mythos-gold-dim)]/50 bg-black">
+                                        <label className="text-sm font-bold text-[var(--color-mythos-gold-dim)] uppercase tracking-wider block mb-2">Qual seu gênero?</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                className="vintage-input flex-1 border-gray-800 focus:border-[var(--color-mythos-gold)]"
+                                                value={customGender}
+                                                onChange={e => setCustomGender(e.target.value)}
+                                                autoFocus
+                                                placeholder="Sua identidade..."
+                                            />
+                                            <Button
+                                                variant="mythos"
+                                                onClick={() => {
+                                                    if (customGender.trim()) {
+                                                        setGender(customGender.trim());
+                                                        setShowGenderModal(false);
+                                                    }
+                                                }}
+                                            >Confirmar</Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -431,7 +558,17 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                     {step === 4 && (
                         <div className="space-y-6 max-w-4xl mx-auto py-6">
                             <h3 className="text-2xl font-serif text-[var(--color-mythos-gold)] text-center mb-6">Equipamento Inicial</h3>
-                            <p className="text-gray-400 text-center mb-8 max-w-2xl mx-auto">Sua ocupação dita seu acesso à recursos financeiros (Credit Rating). O investigador tem os aparelhos básicos relativos à sua profissão. Além disso, selecione suas armas e equipamentos de proteção iniciais.</p>
+                            <p className="text-gray-400 text-center mb-8 max-w-2xl mx-auto">Seu Nível de Crédito define suas economias e orçamento diário na Europa dos anos 70. Compre armas e equipe-se, mas apenas naquilo que você possui proficiência.</p>
+
+                            <div className="flex justify-between items-center bg-black/50 p-4 border border-[var(--color-mythos-gold-dim)]/40 sticky top-0 z-20 shadow-xl backdrop-blur-md">
+                                <span className="uppercase text-[var(--color-mythos-gold-dim)] font-bold tracking-widest text-sm">Reserva Financeira</span>
+                                <div className="text-right flex items-center gap-4">
+                                    {baseCash <= 0 && <span className="text-red-500 text-xs italic opacity-70">(Aumente a perícia "Nível de Crédito" para ganhar $)</span>}
+                                    <span className={`text-3xl font-serif font-bold ${currentCash > 0 ? 'text-green-500' : currentCash === 0 && baseCash > 0 ? 'text-[var(--color-mythos-gold)]' : 'text-red-500'}`}>
+                                        ${currentCash.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {StandardWeapons.map(weapon => {
@@ -446,17 +583,27 @@ export function CharacterWizard({ onComplete, onCancel, isSaving = false }: Char
                                         if (isUnarmed) return; // Cannot unequip hands
                                         if (!hasSkill) return; // Cannot equip if they don't have the skill
 
-                                        if (isSelected) setSelectedWeapons(selectedWeapons.filter(id => id !== weapon.id));
-                                        else setSelectedWeapons([...selectedWeapons, weapon.id]);
+                                        if (isSelected) {
+                                            setSelectedWeapons(selectedWeapons.filter(id => id !== weapon.id));
+                                        } else {
+                                            if (currentCash >= (weapon.price || 0)) {
+                                                setSelectedWeapons([...selectedWeapons, weapon.id]);
+                                            } else {
+                                                alert(`Fundos insuficientes. São necessários $${weapon.price}.`);
+                                            }
+                                        }
                                     };
 
                                     return (
                                         <div key={weapon.id} onClick={toggle} className={`relative p-4 border-2 transition-colors ${!hasSkill ? 'border-gray-900 bg-[#0a0a0a] opacity-60 cursor-not-allowed' : isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]/10 cursor-pointer' : 'border-gray-800 bg-[#111] hover:border-gray-600 cursor-pointer'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <h4 className={`font-bold uppercase tracking-wider ${isSelected ? 'text-white' : !hasSkill ? 'text-gray-600' : 'text-[var(--color-mythos-gold-dim)]'}`}>{weapon.name}</h4>
-                                                <div className={`w-5 h-5 border-2 flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]' : !hasSkill ? 'border-gray-800' : 'border-gray-600'}`}>
+                                                <div className={`w-5 h-5 border-2 flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-[var(--color-mythos-gold)] bg-[var(--color-mythos-gold)]' : !hasSkill ? 'border-gray-800' : currentCash < (weapon.price || 0) ? 'border-red-900/50 cursor-not-allowed' : 'border-gray-600'}`}>
                                                     {isSelected && <div className="w-2 h-2 bg-black" />}
                                                 </div>
+                                            </div>
+                                            <div className="absolute top-0 left-0 bg-black/80 px-2 py-1 border-b border-r border-gray-800 z-10 text-[var(--color-mythos-green)] font-mono font-bold">
+                                                ${weapon.price || 0}
                                             </div>
                                             {weapon.imageUrl && (
                                                 <div className={`w-full h-28 relative mb-3 border border-gray-800 overflow-hidden ${isSelected ? 'opacity-100' : hasSkill ? 'opacity-70' : 'opacity-30'}`}>

@@ -23,10 +23,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Fetch initial session and profile
         const initializeAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            console.log("[AuthContext] Inicializando a sessão...");
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) console.error("[AuthContext] Erro ao buscar sessão:", error);
+
             if (session?.user) {
+                console.log("[AuthContext] Sessão encontrada, buscando profile para user:", session.user.id);
                 await fetchProfile(session.user.id);
             } else {
+                console.log("[AuthContext] Nenhuma sessão ativa no momento.");
                 setUser(null);
                 setIsLoading(false);
             }
@@ -36,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log(`[AuthContext] onAuthStateChange disparado. Evento: ${event}`, session?.user ? `User: ${session.user.id}` : 'Sem sessão');
             if (event === 'SIGNED_OUT') {
                 setUser(null);
                 setIsLoading(false);
@@ -54,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchProfile = async (userId: string) => {
         try {
+            console.log(`[AuthContext] Fetching profile data para: ${userId}`);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
@@ -61,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single();
 
             if (data && !error) {
+                console.log(`[AuthContext] Profile resgatado com sucesso:`, data);
                 setUser({
                     id: data.id,
                     username: data.username,
@@ -83,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const safeUsername = username.toLowerCase().replace(/[^a-z0-9]/g, '');
             const email = `${safeUsername}@arkham-archives.com`;
+            console.log(`[AuthContext] Tentativa de Login para usuário: ${username} (Email virtual: ${email})`);
 
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
@@ -90,11 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (error || !data.user) {
-                console.error("Login failed:", error);
+                console.error("[AuthContext] Login failed (Supabase Error):", error);
                 setIsLoading(false);
                 return { success: false, error: error?.message || "Erro desconhecido ao entrar." };
             }
 
+            console.log(`[AuthContext] Login efetuado com sucesso no Supabase. ID do Usuário:`, data.user.id);
             await fetchProfile(data.user.id);
             return { success: true };
         } catch (error: any) {
@@ -137,7 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
+        console.log("[AuthContext] Desconectando usuário atual...");
+        const { error } = await supabase.auth.signOut();
+        if (error) console.error("[AuthContext] Erro efetuando SignOut no Supabase:", error);
         setUser(null);
         router.push('/');
     };

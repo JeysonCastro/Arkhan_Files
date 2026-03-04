@@ -93,6 +93,7 @@ export default function GMSessionPage() {
 
     const fetchSessionData = async () => {
         if (!selectedSessionId) return;
+        console.log(`[GMSession] Loading general data for Session ID:`, selectedSessionId);
         try {
             const { data, error } = await supabase
                 .from('sessions')
@@ -100,13 +101,17 @@ export default function GMSessionPage() {
                 .eq('id', selectedSessionId)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error("[GMSession] Erro gravíssimo ao puxar dados globais da sessão:", error);
+                throw error;
+            }
+            console.log("[GMSession] Dados da sessão carregados com sucesso:", data);
             setSessionData(data);
             setIsLightsOut(data.is_lights_out || false);
             setAmbientAudio(data.ambient_audio || 'none');
             setSceneMode(data.scene_mode || 'EXPLORATION');
         } catch (err) {
-            console.error("Error fetching session:", err);
+            console.error("[GMSession] Exceção em fetchSessionData:", err);
         }
     };
 
@@ -114,6 +119,7 @@ export default function GMSessionPage() {
         if (!sessionId) return;
         setIsLoadingData(true);
         setFetchError(null);
+        console.log(`[GMSession] Mapeando personagens ativos via session_characters na sessão ${sessionId}...`);
         try {
             let query = supabase.from('investigators').select('*').order('created_at', { ascending: false });
 
@@ -123,20 +129,28 @@ export default function GMSessionPage() {
                 .select('investigator_id')
                 .eq('session_id', sessionId);
 
-            if (linkError) throw linkError;
+            if (linkError) {
+                console.error("[GMSession] Erro na query de bridge session_characters:", linkError);
+                throw linkError;
+            }
 
             const investigatorIds = sessionLinks.map(link => link.investigator_id);
+            console.log(`[GMSession] IDs identificados vinculados à sala:`, investigatorIds);
 
             if (investigatorIds.length > 0) {
                 query = query.in('id', investigatorIds);
             } else {
+                console.log("[GMSession] Nenhum investigator_id retornado. Esvaziando a mesa.");
                 setInvestigators([]);
                 setIsLoadingData(false);
                 return;
             }
 
             const { data, error } = await query;
-            if (error) throw error;
+            if (error) {
+                console.error("[GMSession] Erro no fetch query final de Investigators:", error);
+                throw error;
+            }
 
             const mapped = data.map(row => ({
                 ...row.data,
@@ -147,9 +161,10 @@ export default function GMSessionPage() {
                 rawInvestigatorData: row.data
             }));
 
+            console.log(`[GMSession] Resolvidos ${mapped.length} JSONs completos de Personagens.`);
             setInvestigators(mapped);
         } catch (err: any) {
-            console.error(err);
+            console.error("[GMSession] Catch completo de erro em fetchInvestigators:", err);
             setFetchError(err.message || 'Erro ao carregar investigadores da sessão.');
         } finally {
             setIsLoadingData(false);

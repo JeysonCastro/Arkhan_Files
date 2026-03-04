@@ -9,6 +9,7 @@ export const BASE_SKILLS_PTBR: BaseSkill[] = [
     { name: "Arqueologia", baseChance: 1, description: "Permite datar e identificar artefatos antigos, bem como conduzir escavações." },
     { name: "Armas de Fogo (Pistola)", baseChance: 20, description: "Habilidade com pistolas, revólveres e outras armas de mão." },
     { name: "Armas de Fogo (Rifle/Espingarda)", baseChance: 25, description: "Habilidade com rifles, espingardas e armas longas." },
+    { name: "Armas de Fogo (Submetralhadora)", baseChance: 15, description: "Habilidade com submetralhadoras e armas automáticas leves." },
     { name: "Arremessar", baseChance: 25, description: "Habilidade de jogar objetos com precisão." },
     { name: "Arte/Ofício", baseChance: 5, description: "Habilidade em uma forma de arte ou ofício específico (ex: Pintura, Carpintaria)." },
     { name: "Avaliação", baseChance: 5, description: "Estimar o valor de itens, antiguidades e obras de arte." },
@@ -181,6 +182,22 @@ export const OCCUPATIONS_PTBR: Occupation[] = [
         creditRating: { min: 20, max: 70 },
         skills: ["Navegação", "Esquivar", "Armas de Fogo (Rifle/Espingarda)", "História", "Língua (Outra)", "Mundo Natural", "Sobrevivência", "Saltar"],
         description: "Aventureiro incansável que viaja pelo mundo desbravando ruínas em selvas remotas e desertos implacáveis."
+    },
+    {
+        name: "Cozinheiro",
+        skillPointsFormula: (edu, str, dex) => edu * 2 + (str > dex ? str : dex) * 2,
+        skillPointsDescription: "EDU × 2 + (FOR ou DES) × 2",
+        creditRating: { min: 9, max: 30 },
+        skills: ["Arte/Ofício", "Ciência", "Esquivar", "Primeiros Socorros", "Encontrar", "Escutar", "Luta (Briga)", "Sobrevivência"],
+        description: "Experiente em lidar com facas e panelas, do calor sufocante das cozinhas de Arkham aos caldos suspeitos de Innsmouth."
+    },
+    {
+        name: "Artista",
+        skillPointsFormula: (edu, str, dex, pow) => edu * 2 + pow * 2,
+        skillPointsDescription: "EDU × 2 + POD × 2",
+        creditRating: { min: 9, max: 50 },
+        skills: ["Arte/Ofício", "História", "Ocultismo", "Psicologia", "Encontrar", "Charme", "Escutar", "Persuasão"],
+        description: "Pintores, escultores ou músicos, dedicados a extrair as verdadeiras, porém horripilantes, formas cósmicas da essência mundana."
     },
     {
         name: "Militar / Soldado",
