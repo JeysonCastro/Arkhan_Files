@@ -150,6 +150,36 @@ export default function CharacterSheetPage() {
         loadCharacter();
     }, [params.id, user, authLoading, router]);
 
+    // Realtime Sync: Receber mudanças do Mestre instantaneamente sem precisar de F5
+    useEffect(() => {
+        if (!params.id || params.id === 'new' || isLoading) return;
+
+        const channel = supabase
+            .channel(`character_sheet_${params.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'investigators',
+                filter: `id=eq.${params.id}`
+            }, (payload) => {
+                console.log("[CharacterSheet] Sincronia Realtime: Mudança externa detectada:", payload.new);
+                if (payload.new && payload.new.data) {
+                    setInvestigator(prev => ({
+                        ...prev,
+                        ...payload.new.data,
+                        id: payload.new.id
+                    }));
+                }
+            })
+            .subscribe((status) => {
+                console.log(`[CharacterSheet] Realtime Status [${params.id}]:`, status);
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [params.id, isLoading, setInvestigator]);
+
     const saveCharacter = async () => {
         if (!user) {
             alert("Você precisa estar logado para salvar.");
