@@ -33,10 +33,9 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
                 .eq('investigator_id', investigatorId)
                 .eq('status', 'PENDING')
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+                .limit(1);
 
-            if (data) setActiveRequest(data);
+            if (data && data.length > 0) setActiveRequest(data[0]);
         };
 
         fetchPending();
