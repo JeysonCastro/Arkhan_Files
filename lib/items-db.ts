@@ -286,7 +286,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Uma refeição quente improvisada feita por um Cozinheiro habilidoso. O sabor de casa afasta parte do desespero e aquece o corpo machucado. [EFEITO: Quando consumido, o Investigador recupera 1D3 Pontos de Vida (PV) e 1 Ponto de Sanidade (SAN). Requer 10 minutos de descanso para consumo correto.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Cura: 1D3 PV / 1 SAN'
+        stats: 'Cura: 1D3 PV / 1 SAN',
+        imageUrl: '/assets/weapons/cns_guisado_tatico_1772727468756.png'
     },
     {
         id: 'cns_bourbon_contrabando',
@@ -294,7 +295,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Bebida de alta graduação alcoólica fornecida pelo submundo de Arkham. Entorpece a mente frente aos Horrores Cósmicos, mas cobra seu preço na capacidade motora e nas pernas. [EFEITO: Ao beber um gole, recupera 1D4 de Sanidade imediatamente. No entanto, o personagem recebe Desvantagem em testes de Destreza (DES) pelas próximas 2 horas.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Cura: 1D4 SAN | Penalidade: -DES'
+        stats: 'Cura: 1D4 SAN | Penalidade: -DES',
+        imageUrl: '/assets/weapons/cns_bourbon_contrabando_1772727484950.png'
     },
     {
         id: 'cns_racao_enlatada',
@@ -302,7 +304,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Sopa de ervilhas ou feijão com carne enlatada. O gosto não é dos melhores, mas mantém você vivo por mais um dia dentro das cavernas ou no mar. [EFEITO: Oferece o sustento nutricional de um dia inteiro sem debuffs de inanição. Restaura passivamente 1 PV se associado a uma noite de sono.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Sustento: 1 Dia / 1 PV no repouso'
+        stats: 'Sustento: 1 Dia / 1 PV no repouso',
+        imageUrl: '/assets/weapons/cns_racao_enlatada_1772727502817.png'
     },
     {
         id: 'cns_cafe_forte_arkham',
@@ -310,7 +313,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um café preparado com o pó turco mais forte disponível nos portos da Costa Leste. Escuro como o vazio, forte como um soco. [EFEITO: Mantém o personagem acordado por mais 6 horas sem penalidades de sono. Ignora debuffs de "Exaustão" temporariamente e fornece um Bônus Praticamente (+10) num teste de PRONTO (Percepção).]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Buff: Ignora Exames / +10 Encontrar'
+        stats: 'Buff: Ignora Exames / +10 Encontrar',
+        imageUrl: '/assets/weapons/cns_cafe_forte_arkham_1772727520303.png'
     },
     {
         id: 'cns_ervas_calmantes',
@@ -318,7 +322,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um blend exótico de camomila, valeriana e possivelmente algo cultivado sob a luz de luas estranhas. O cheiro sozinho já acalma os nervos fritos do ocultista moderno. [EFEITO: Remove o status de "Pânico" temporário e restaura 1D2 Pontos de Sanidade. Pode induzir sonolência pesada em rolagens de CON falhas.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Cura: 1D2 SAN | Status: Acalma Pânico'
+        stats: 'Cura: 1D2 SAN | Status: Acalma Pânico',
+        imageUrl: '/assets/weapons/cns_ervas_calmantes_1772727535890.png'
     },
     {
         id: 'cns_kit_medico_consumivel',
@@ -326,7 +331,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Um pacote esterilizado de uso único do pós-guerra. Contém o básico para fechar um buraco de bala rápido para continuar vivo no tiroteio. [EFEITO: Aplicado em 1 rodada. Estanca instantaneamente status de Sangramento e recupera 1D4 Pontos de Vida. O efeito da morfina mascara 1 nível de Ferimento Maior temporariamente.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Cura: 1D4 PV | Parar Sangramento'
+        stats: 'Cura: 1D4 PV | Parar Sangramento',
+        imageUrl: '/assets/weapons/cns_kit_medico_consumivel_1772727552555.png'
     },
     {
         id: 'cns_charuto_cubano',
@@ -334,7 +340,8 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Tabaco da mais alta e opulenta qualidade. Fumar este artefato lhe dá a aura da velha dinheirama e acalma demônios internos com classe. [EFEITO: O ato de fumá-lo inteiro acalma 1 Ponto de Sanidade e concede vantagem em testes Sociais (Charme/Lábia) contra NPCs de Alta Sociedade, Aristocratas e Gangsters para a Cena em vigor.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Cura: 1 SAN | Social: Vantagem (Lábia)'
+        stats: 'Cura: 1 SAN | Social: Vantagem (Lábia)',
+        imageUrl: '/assets/weapons/cns_charuto_cubano_1772727567493.png'
     },
     {
         id: 'wpn_faca_chef',
@@ -351,6 +358,7 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         description: 'Muito pesado, coberto de gordura, manchas suspeitas de sangue de gado e cabo manchado. Uma ferramenta formidável para amputar membros ou arrancar maçanetas de portas via força bruta. [EFEITO DAS ARMAS: Por ser focada unicamente na força de esmagamento contra tecidos corporais moles, um acerto bem sucedido ignora até 1 ponto de proteção física (como casacos de couro grossos).]',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d6 + BC | Perfuração: Ignora 1 Armadura'
+        stats: 'Dano: 1d6 + BC | Perfuração: Ignora 1 Armadura',
+        imageUrl: '/assets/weapons/wpn_cutelo_acougueiro_1772727583806.png'
     }
 ];
