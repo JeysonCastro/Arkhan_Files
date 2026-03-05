@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,14 @@ import { Role } from "@/lib/auth-types";
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login, register } = useAuth();
+    const { login, register, user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            window.location.href = user.role === 'KEEPER' ? '/gm' : '/dashboard';
+        }
+    }, [user]);
 
     // Form State
     const [username, setUsername] = useState("");
@@ -30,7 +36,7 @@ export default function LoginPage() {
         setIsLoading(true);
         const result = await login(username, password);
         if (result.success) {
-            router.push('/'); // Or dashboard based on role, handled by protected routes or here
+            window.location.href = '/'; // Or dashboard based on role, handled by protected routes or here
         } else {
             setError(result.error || "Credenciais inválidas. Os Antigos não reconhecem você.");
         }
@@ -45,8 +51,8 @@ export default function LoginPage() {
         if (result.success) {
             // Register auto-logins
             // Redirection logic for fresh register
-            if (role === 'KEEPER') router.push('/gm');
-            else router.push('/dashboard');
+            if (role === 'KEEPER') window.location.href = '/gm';
+            else window.location.href = '/dashboard';
         } else {
             // Translate common Supabase errors to Portuguese
             let ptError = result.error;
