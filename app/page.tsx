@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import Image from "next/image";
 
 export default function Home() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [lightning, setLightning] = useState(false);
@@ -116,7 +118,7 @@ export default function Home() {
                 <Button
                   variant="mythos"
                   className="w-full text-lg shadow-[0_0_15px_rgba(184,134,11,0.2)] hover:shadow-[0_0_25px_rgba(184,134,11,0.5)] transition-all h-14"
-                  onClick={() => window.location.href = '/gm'}
+                  onClick={() => router.push('/gm')}
                 >
                   Área do Guardião
                 </Button>
@@ -124,7 +126,7 @@ export default function Home() {
               <Button
                 variant={user.role === 'KEEPER' ? "outline" : "mythos"}
                 className={`w-full text-lg h-14 ${user.role === 'KEEPER' ? 'bg-black/50 border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold-dim)] hover:text-[var(--color-mythos-gold)]' : 'shadow-[0_0_15px_rgba(184,134,11,0.2)] hover:shadow-[0_0_25px_rgba(184,134,11,0.5)] transition-all'}`}
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={() => router.push('/dashboard')}
               >
                 {user.role === 'KEEPER' ? "Ver Fichas de Jogador" : "Adentrar as Trevas"}
               </Button>

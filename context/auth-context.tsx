@@ -18,6 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const fetchingRef = React.useRef(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Only fetch profile if we don't have it yet to prevent loops
                 await fetchProfile(session.user.id);
             } else if (event === 'INITIAL_SESSION' && !session) {
-                setIsLoading(false);
+                // Ignore INITIAL_SESSION null. Deixamos a Promise segura do `initializeAuth` decidir quando o isLoading passa para false após verificar o LocalStorage!
             }
         });
 
@@ -59,6 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const fetchProfile = async (userId: string) => {
+        if (fetchingRef.current) {
+            console.log("[AuthContext] Evitando duplo fetch simultâneo.");
+            return;
+        }
+        fetchingRef.current = true;
         try {
             console.log(`[AuthContext] Fetching profile data para: ${userId}`);
             const { data, error } = await supabase
@@ -83,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
         } finally {
             setIsLoading(false);
+            fetchingRef.current = false;
         }
     };
 
