@@ -268,7 +268,24 @@ export default function GMSessionPage() {
             console.log("[REALTIME_SYNC] GM: Refresh Completo recebido da mesa.");
             fetchSessionData();
             fetchInvestigators(selectedSessionId);
-        });
+        })
+            .on('broadcast', { event: 'sync_session' }, (payload) => {
+                const { field, value } = payload.payload;
+                console.log(`[REALTIME_SYNC] GM: Sync Otimista Local: ${field} =`, value);
+                setSessionData((prev: any) => ({ ...prev, [field]: value }));
+                if (field === 'is_shop_open') setIsShopOpen(value);
+                if (field === 'shop_inventory') setShopInventory(value);
+                if (field === 'scene_mode') setSessionData((prev: any) => ({ ...prev, scene_mode: value }));
+                if (field === 'ambient_audio') setSessionData((prev: any) => ({ ...prev, ambient_audio: value }));
+            })
+            .on('broadcast', { event: 'status_update' }, (payload) => {
+                const { investigatorId, field, value } = payload.payload;
+                console.log(`[REALTIME_SYNC] GM: Investigador alterou próprio status: ${field} = ${value}`);
+                setInvestigators(prev => prev.map(inv => inv.id === investigatorId ? { ...inv, [field]: value } : inv));
+                if (selectedId === investigatorId) {
+                    setInvestigator((prev: any) => prev ? { ...prev, [field]: value } : null);
+                }
+            });
 
         // 5. Connect and hold Ref
         multiplexChannel.subscribe((status) => {

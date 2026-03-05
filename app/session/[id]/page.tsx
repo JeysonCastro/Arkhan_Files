@@ -356,6 +356,12 @@ export default function PlayerSessionView() {
             if (error) {
                 console.error("Failed to update inventory:", error);
                 alert("Erro ao excluir item do banco de dados.");
+            } else {
+                globalChannelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'status_update',
+                    payload: { investigatorId: currentUserInvestigator.id, field: 'inventory', value: newInventory }
+                });
             }
         } catch (e) {
             console.error("Error handling item removal:", e);
@@ -407,11 +413,17 @@ export default function PlayerSessionView() {
 
             if (shopError) throw shopError;
 
-            // Broadcast refresh
+            // Broadcast refresh shop and buyer inventory
             globalChannelRef.current?.send({
                 type: 'broadcast',
                 event: 'sync_session',
                 payload: { field: 'shop_inventory', value: newShopInventory }
+            });
+
+            globalChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'status_update',
+                payload: { investigatorId: currentUserInvestigator.id, field: 'inventory', value: newInventoryBuyer }
             });
 
             alert(`Você comprou ${item.name}!`);
