@@ -279,35 +279,67 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         stats: 'Uso: 1d6 cargas. Revela entidades extra-dimensionais.'
     },
 
-    // --- CONSUMÍVEIS (CURA & CULINÁRIA) ---
+    // --- CONSUMÍVEIS (CURA & UTILIDADE MÉDICA) ---
     {
         id: 'cns_guisado_tatico',
         name: 'Guisado Caseiro Tático',
-        description: 'Uma refeição quente improvisada feita por um Cozinheiro habilidoso. O sabor de casa afasta parte do desespero e aquece o corpo machucado.',
+        description: 'Uma refeição quente improvisada feita por um Cozinheiro habilidoso. O sabor de casa afasta parte do desespero e aquece o corpo machucado. [EFEITO: Quando consumido, o Investigador recupera 1D3 Pontos de Vida (PV) e 1 Ponto de Sanidade (SAN). Requer 10 minutos de descanso para consumo correto.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Mecânica: Restaura 1D3 PV e 1 Ponto de Sanidade.'
+        stats: 'Cura: 1D3 PV / 1 SAN'
     },
     {
         id: 'cns_bourbon_contrabando',
         name: 'Bourbon de Contrabando da Lei Seca',
-        description: 'Bebida de alta graduação alcoólica fornecida pelo submundo de Arkham. Entorpece a mente frente aos Horrores Cósmicos, mas cobra seu preço nas pernas.',
+        description: 'Bebida de alta graduação alcoólica fornecida pelo submundo de Arkham. Entorpece a mente frente aos Horrores Cósmicos, mas cobra seu preço na capacidade motora e nas pernas. [EFEITO: Ao beber um gole, recupera 1D4 de Sanidade imediatamente. No entanto, o personagem recebe Desvantagem em testes de Destreza (DES) pelas próximas 2 horas.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Mecânica: Restaura 1D4 Sanidade, impõe Desvantagem em DES por 2 horas.'
+        stats: 'Cura: 1D4 SAN | Penalidade: -DES'
     },
     {
         id: 'cns_racao_enlatada',
         name: 'Ração Militar Enlatada',
-        description: 'Sopa de ervilhas ou feijão com carne enlatada. Ruim, mas mantém você vivo por mais um dia dentro das cavernas.',
+        description: 'Sopa de ervilhas ou feijão com carne enlatada. O gosto não é dos melhores, mas mantém você vivo por mais um dia dentro das cavernas ou no mar. [EFEITO: Oferece o sustento nutricional de um dia inteiro sem debuffs de inanição. Restaura passivamente 1 PV se associado a uma noite de sono.]',
         type: 'Consumível',
         quantity: 1,
-        stats: 'Mecânica: Sustento diário. Restaura 1 PV.'
+        stats: 'Sustento: 1 Dia / 1 PV no repouso'
+    },
+    {
+        id: 'cns_cafe_forte_arkham',
+        name: 'Garrafa de Café Expresso Amargo',
+        description: 'Um café preparado com o pó turco mais forte disponível nos portos da Costa Leste. Escuro como o vazio, forte como um soco. [EFEITO: Mantém o personagem acordado por mais 6 horas sem penalidades de sono. Ignora debuffs de "Exaustão" temporariamente e fornece um Bônus Praticamente (+10) num teste de PRONTO (Percepção).]',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Buff: Ignora Exames / +10 Encontrar'
+    },
+    {
+        id: 'cns_ervas_calmantes',
+        name: 'Chá de Ervas Calmantes',
+        description: 'Um blend exótico de camomila, valeriana e possivelmente algo cultivado sob a luz de luas estranhas. O cheiro sozinho já acalma os nervos fritos do ocultista moderno. [EFEITO: Remove o status de "Pânico" temporário e restaura 1D2 Pontos de Sanidade. Pode induzir sonolência pesada em rolagens de CON falhas.]',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Cura: 1D2 SAN | Status: Acalma Pânico'
+    },
+    {
+        id: 'cns_kit_medico_consumivel',
+        name: 'Atadura e Morfina (Kit Rápido)',
+        description: 'Um pacote esterilizado de uso único do pós-guerra. Contém o básico para fechar um buraco de bala rápido para continuar vivo no tiroteio. [EFEITO: Aplicado em 1 rodada. Estanca instantaneamente status de Sangramento e recupera 1D4 Pontos de Vida. O efeito da morfina mascara 1 nível de Ferimento Maior temporariamente.]',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Cura: 1D4 PV | Parar Sangramento'
+    },
+    {
+        id: 'cns_charuto_cubano',
+        name: 'Charuto Cubano Importado',
+        description: 'Tabaco da mais alta e opulenta qualidade. Fumar este artefato lhe dá a aura da velha dinheirama e acalma demônios internos com classe. [EFEITO: O ato de fumá-lo inteiro acalma 1 Ponto de Sanidade e concede vantagem em testes Sociais (Charme/Lábia) contra NPCs de Alta Sociedade, Aristocratas e Gangsters para a Cena em vigor.]',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Cura: 1 SAN | Social: Vantagem (Lábia)'
     },
     {
         id: 'wpn_faca_chef',
         name: 'Faca de Chef Profissional',
-        description: 'Aço carbono meticulosamente afiado por um mestre cuca para desossar grandes animais. Corta tendões humanos feito manteiga.',
+        description: 'Aço carbono meticulosamente afiado por um mestre cuca para desossar grandes animais de açougue. Corta tendões humanos feito manteiga se souber encontrar a junta. [EFEITO DAS ARMAS: Sendo uma ferramenta tática de cortes profundos, acertos críticos sempre resultam em Sangramento severo, causando 1 PV de dano por turno até ser estancado.]',
         type: 'Arma Branca',
         quantity: 1,
         stats: 'Dano: 1d4+1 + BC | Crit: Sangramento',
@@ -316,9 +348,9 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
     {
         id: 'wpn_cutelo_acougueiro',
         name: 'Cutelo Engordurado',
-        description: 'Pesado e coberto de manchas suspeitas de sangue de gado e algoijo. Ferramenta formidável para amputar membros à força.',
+        description: 'Muito pesado, coberto de gordura, manchas suspeitas de sangue de gado e cabo manchado. Uma ferramenta formidável para amputar membros ou arrancar maçanetas de portas via força bruta. [EFEITO DAS ARMAS: Por ser focada unicamente na força de esmagamento contra tecidos corporais moles, um acerto bem sucedido ignora até 1 ponto de proteção física (como casacos de couro grossos).]',
         type: 'Arma Branca',
         quantity: 1,
-        stats: 'Dano: 1d6 + BC'
+        stats: 'Dano: 1d6 + BC | Perfuração: Ignora 1 Armadura'
     }
 ];
