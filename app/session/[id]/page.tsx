@@ -23,6 +23,7 @@ export default function PlayerSessionView() {
     const router = useRouter();
     const { user, isLoading } = useAuth();
     const globalChannelRef = useRef<any>(null);
+    const channelInitialized = useRef(false);
 
     const [sessionData, setSessionData] = useState<any>(null);
     const [companions, setCompanions] = useState<any[]>([]);
@@ -151,15 +152,20 @@ export default function PlayerSessionView() {
         }
     };
 
-    // Realtime Listener for Investigator updates (HP, MP, Sanity, etc.)
+    // Realtime Listener Unificado (Multiplexado) para estabilidade extrema
     useEffect(() => {
-        if (!params.id || isLoadingData) return;
-
+        if (!params.id || !user) return; // Aguarda user context se assentar
         const sessionId = params.id as string;
 
-        // 1. Investigators Update Channel
-        const invSubscription = supabase
-            .channel(`session_updates_${sessionId}`)
+        if (channelInitialized.current) return; // Block para Strict Mode Double-Mount
+        channelInitialized.current = true;
+
+        console.log(`[REALTIME_SYNC] Ligando motor Realtime unificado na sala ${sessionId}.`);
+
+        const multiplexChannel = supabase.channel(`room_sync_${sessionId}`, { config: { broadcast: { self: true, ack: true } } });
+
+        multiplexChannel
+            // Evento: Banco de Dados de Investigadores foi alterado
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
@@ -186,38 +192,29 @@ export default function PlayerSessionView() {
                             rawInvestigatorData: invData
                         };
 
-                        console.log(`[REALTIME_SYNC] Atualizado ${newCompanions[idx].characterName}. Major: ${newCompanions[idx].isMajorWound}`);
+                        console.log(`[REALTIME_SYNC] Atualizado DB Otimista: ${newCompanions[idx].characterName}.`);
 
-                        // Realtime Item Notification if current user's inventory grew
+                        // Notification item Drop
                         if (newCompanions[idx].isCurrentUser) {
                             const oldInvLength = prev[idx].inventory?.length || 0;
                             const newInvLength = invData?.inventory?.length || 0;
-
                             if (newInvLength > oldInvLength && invData.inventory) {
-                                const newlyAddedItem = invData.inventory[invData.inventory.length - 1];
-                                setReceivedItem(newlyAddedItem);
+                                setReceivedItem(invData.inventory[invData.inventory.length - 1]);
                             }
                         }
-
                         return newCompanions;
                     }
                     return prev;
                 });
             })
-            .subscribe((status) => {
-                console.log(`Supabase Realtime (Investigators) [${sessionId}]:`, status);
-            });
-
-        // 2. Global Session & Audio Broadcast Channel
-        const sessionSub = supabase
-            .channel(`session_global_${sessionId}`, { config: { broadcast: { self: true, ack: true } } })
+            // Evento: Sessão do Mestre sendo editada no DB bruto
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
                 table: 'sessions',
                 filter: `id=eq.${sessionId}`
             }, (payload) => {
-                console.log("Global Session Update Received:", payload.new);
+                console.log("[REALTIME_SYNC] Sessão atualizada via Postgres:", payload.new);
                 setSessionData((prev: any) => ({
                     ...prev,
                     is_lights_out: payload.new.is_lights_out,
@@ -229,6 +226,7 @@ export default function PlayerSessionView() {
                 setIsShopOpen(payload.new.is_shop_open || false);
                 setShopInventory(payload.new.shop_inventory || []);
             })
+            // Eventos: Broadcast Embutidos Específicos
             .on('broadcast', { event: 'play_sound' }, (payload) => {
                 const url = payload.payload?.soundUrl;
                 const targetId = payload.payload?.targetId;
@@ -236,49 +234,46 @@ export default function PlayerSessionView() {
                 setCompanions(prev => {
                     const currentInvestigator = prev.find(c => c.isCurrentUser);
                     if (!currentInvestigator) return prev;
-
                     if (url && (!targetId || targetId === 'ALL' || targetId === currentInvestigator.id)) {
-                        console.log(`SFX Recebido: ${url} (Alvo: ${targetId || 'ALL'})`);
+                        console.log(`[REALTIME_SYNC] Play Audio Recebido: ${url}`);
                         const audio = new Audio(url);
                         audio.volume = 0.5;
-                        audio.play().catch(e => console.error("Audio playback blocked:", e));
+                        audio.play().catch(e => console.error(e));
                     }
                     return prev;
                 });
             })
             .on('broadcast', { event: 'status_update' }, (payload) => {
                 const { investigatorId, field, value } = payload.payload;
-                console.log(`[STATUS_BROADCAST] Recebido: ${field} = ${value} para ${investigatorId}. Iniciando refresh silencioso.`);
-
-                // Otimista: Aplicar localmente primeiro
-                setCompanions(prev => {
-                    return prev.map(c => {
-                        if (c.id === investigatorId) {
-                            return { ...c, [field]: value };
-                        }
-                        return c;
-                    });
-                });
-
-                // Garantia: Refresh silencioso para pegar o objeto 'data' completo (mochila, etc)
+                setCompanions(prev => prev.map(c => c.id === investigatorId ? { ...c, [field]: value } : c));
                 fetchSessionData(true);
             })
             .on('broadcast', { event: 'refresh_session' }, () => {
-                console.log("[BROADCAST] Refresh forçado pelo mestre.");
+                console.log("[REALTIME_SYNC] Refresh completo da sessão (Forçado)");
                 fetchSessionData(true);
             })
+            .on('broadcast', { event: 'sync_session' }, (payload) => {
+                const { field, value } = payload.payload;
+                console.log(`[REALTIME_SYNC] Sync Otimista Local: ${field} =`, value);
+                setSessionData((prev: any) => ({ ...prev, [field]: value }));
+                if (field === 'is_shop_open') setIsShopOpen(value);
+                if (field === 'shop_inventory') setShopInventory(value);
+                if (field === 'scene_mode') setSessionData((prev: any) => ({ ...prev, scene_mode: value }));
+                if (field === 'ambient_audio') setSessionData((prev: any) => ({ ...prev, ambient_audio: value }));
+            })
             .subscribe((status) => {
-                console.log(`Supabase Realtime (Global) [${sessionId}]:`, status);
+                console.log(`[REALTIME_SYNC] Multiplex Status da Mesa:`, status);
             });
 
-        globalChannelRef.current = sessionSub;
+        globalChannelRef.current = multiplexChannel;
 
         return () => {
-            supabase.removeChannel(invSubscription);
-            supabase.removeChannel(sessionSub);
+            console.log(`[REALTIME_SYNC] Desconectando e Desativando canais.`);
+            supabase.removeChannel(multiplexChannel);
             globalChannelRef.current = null;
+            channelInitialized.current = false;
         };
-    }, [params.id, isLoadingData]);
+    }, [params.id, user]);
 
     // O Polling de Segurança foi desativado em prol da performance. 
     // O sistema agora confia integralmente nos Sockets Realtime (WebSockets) do Supabase.
@@ -415,8 +410,8 @@ export default function PlayerSessionView() {
             // Broadcast refresh
             globalChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'shop_inventory', value: newShopInventory }
             });
 
             alert(`Você comprou ${item.name}!`);

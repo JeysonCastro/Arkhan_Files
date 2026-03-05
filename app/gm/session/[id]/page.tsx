@@ -68,8 +68,9 @@ export default function GMSessionPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [customItems, setCustomItems] = useState<any[]>([]);
 
-    // Persistent Broadcast Channel Ref
+    // Persistent Broadcast Channel Ref e Multiplex Lock
     const broadcastChannelRef = useRef<any>(null);
+    const channelInitialized = useRef(false);
 
     // State for the selected investigator (modal)
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -207,157 +208,82 @@ export default function GMSessionPage() {
         }
     }, [user, isLoading, router, selectedSessionId]);
 
-    // Subscribe to Roll Requests
+    // Super-Multiplex Realtime Subscriptions (GM)
     useEffect(() => {
         if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
 
-        console.log("Setting up REALTIME listener for session:", selectedSessionId);
+        if (channelInitialized.current) return;
+        channelInitialized.current = true;
 
+        console.log(`[REALTIME_SYNC] Ligando Motor Multiplex GM na sala: ${selectedSessionId}`);
         fetchActiveRolls();
 
-        const subscription = supabase
-            .channel(`gm_roles_channel_${selectedSessionId}`) // Unique channel per session
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'roll_requests',
-                    filter: `session_id=eq.${selectedSessionId}`
-                },
-                (payload) => {
-                    console.log("Realtime GM Payload Received:", payload);
-                    // Refresh the active rolls on any change
-                    fetchActiveRolls();
-
-                    // If it's an update to ROLLED, maybe show a toast/alert
-                    if (payload.eventType === 'UPDATE' && payload.new.status === 'ROLLED') {
-                        // Optional: could play a sound or use a toast library here
-                        console.log("Player Rolled:", payload.new);
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'sessions',
-                    filter: `id=eq.${selectedSessionId}`
-                },
-                (payload) => {
-                    console.log("[GM_REALTIME] Session Updated:", payload.new);
-                    setSessionData((prev: any) => ({
-                        ...prev,
-                        is_lights_out: payload.new.is_lights_out,
-                        ambient_audio: payload.new.ambient_audio,
-                        scene_mode: payload.new.scene_mode,
-                        is_shop_open: payload.new.is_shop_open,
-                        shop_inventory: payload.new.shop_inventory
-                    }));
-                    setIsShopOpen(payload.new.is_shop_open || false);
-                    setShopInventory(payload.new.shop_inventory || []);
-                }
-            )
-            .subscribe((status) => {
-                console.log("Supabase GM Realtime Status:", status);
-            });
-
-        return () => {
-            console.log("Cleaning up REALTIME listener");
-            supabase.removeChannel(subscription);
-        };
-    }, [user, selectedSessionId]);
-
-    // Persistent Broadcast Channel for GM commands (SFX, Status updates)
-    useEffect(() => {
-        if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
-
-        const channel = supabase.channel(`session_global_${selectedSessionId}`, {
-            config: {
-                broadcast: { self: true, ack: true }
-            }
+        const multiplexChannel = supabase.channel(`room_sync_${selectedSessionId}`, {
+            config: { broadcast: { self: true, ack: true } }
         });
 
-        channel.on('broadcast', { event: 'refresh_session' }, () => {
-            console.log("[GM_BROADCAST] Refresh forçado recebido da mesa.");
+        // 1. Roll Requests
+        multiplexChannel.on('postgres_changes', {
+            event: '*', schema: 'public', table: 'roll_requests', filter: `session_id=eq.${selectedSessionId}`
+        }, (payload) => {
+            console.log("[REALTIME_SYNC] GM Roll Received:", payload);
+            fetchActiveRolls();
+        });
+
+        // 2. Session Updates (Lights, Shop, Audio, Scene)
+        multiplexChannel.on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${selectedSessionId}`
+        }, (payload) => {
+            console.log("[REALTIME_SYNC] Sessão Atualizada (DB GM):", payload.new);
+            setSessionData((prev: any) => ({
+                ...prev,
+                is_lights_out: payload.new.is_lights_out,
+                ambient_audio: payload.new.ambient_audio,
+                scene_mode: payload.new.scene_mode,
+                is_shop_open: payload.new.is_shop_open,
+                shop_inventory: payload.new.shop_inventory
+            }));
+            setIsShopOpen(payload.new.is_shop_open || false);
+            setShopInventory(payload.new.shop_inventory || []);
+        });
+
+        // 3. Investigators Updates (HP, Sanity, Inventory)
+        multiplexChannel.on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'investigators'
+        }, (payload) => {
+            const newData = {
+                ...payload.new.data,
+                id: payload.new.id,
+                name: payload.new.name,
+                occupation: payload.new.occupation,
+                isFirearmReady: payload.new.is_firearm_ready || false,
+                rawInvestigatorData: payload.new.data
+            };
+            setInvestigators(prev => prev.map(inv => inv.id === newData.id ? newData : inv));
+            if (selectedId === newData.id) setInvestigator(newData); // If currently viewing
+        });
+
+        // 4. Broadcasts (Refresh from Players, Purchases, etc.)
+        multiplexChannel.on('broadcast', { event: 'refresh_session' }, () => {
+            console.log("[REALTIME_SYNC] GM: Refresh Completo recebido da mesa.");
             fetchSessionData();
             fetchInvestigators(selectedSessionId);
         });
 
-        channel.subscribe((status) => {
-            console.log(`GM Broadcast Channel [${selectedSessionId}] status:`, status);
-            if (status === 'SUBSCRIBED') {
-                broadcastChannelRef.current = channel;
-            }
+        // 5. Connect and hold Ref
+        multiplexChannel.subscribe((status) => {
+            console.log(`[REALTIME_SYNC] Multiplex GM Status:`, status);
         });
 
+        broadcastChannelRef.current = multiplexChannel;
+
         return () => {
-            console.log("Cleaning up GM Broadcast Channel");
-            supabase.removeChannel(channel);
+            console.log("[REALTIME_SYNC] Cleaning up GM Multiplex");
+            supabase.removeChannel(multiplexChannel);
             broadcastChannelRef.current = null;
+            channelInitialized.current = false;
         };
     }, [user, selectedSessionId]);
-
-    // Shop Realtime Listener
-    useEffect(() => {
-        if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
-
-        const shopSub = supabase
-            .channel(`gm_shop_${selectedSessionId}`)
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'sessions',
-                filter: `id=eq.${selectedSessionId}`
-            }, (payload) => {
-                if (payload.new) {
-                    setIsShopOpen(payload.new.is_shop_open || false);
-                    setShopInventory(payload.new.shop_inventory || []);
-                }
-            })
-            .subscribe();
-
-        return () => { supabase.removeChannel(shopSub); };
-    }, [user, selectedSessionId]);
-
-    // Realtime Listener for Investigator updates (HP, MP, Sanity on GM screen)
-    useEffect(() => {
-        if (!user || user.role !== 'KEEPER' || isLoadingData) return;
-
-        const subscription = supabase
-            .channel(`gm_investigators_updates_${selectedSessionId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'investigators'
-                },
-                (payload) => {
-                    const newData = {
-                        ...payload.new.data,
-                        id: payload.new.id,
-                        name: payload.new.name,
-                        occupation: payload.new.occupation,
-                        isFirearmReady: payload.new.is_firearm_ready || false,
-                        rawInvestigatorData: payload.new.data
-                    };
-
-                    setInvestigators(prev => prev.map(inv => inv.id === newData.id ? newData : inv));
-
-                    // If viewing this investigator currently, update local state
-                    if (selectedId === newData.id) {
-                        setInvestigator(newData);
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(subscription);
-        };
-    }, [user, isLoadingData, selectedSessionId, selectedId]);
 
     // Cleanup stale rolls (2 minutes = 120000ms)
     useEffect(() => {
@@ -414,8 +340,8 @@ export default function GMSessionPage() {
 
             broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'is_lights_out', value: newState }
             });
         } catch (err) {
             console.error("Erro ao alterar iluminação:", err);
@@ -435,11 +361,10 @@ export default function GMSessionPage() {
             if (error) throw error;
             setIsShopOpen(newState);
 
-            // Avisar ao canal global que a porta do comércio abriu/fechou
             broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'is_shop_open', value: newState }
             });
 
         } catch (err) {
@@ -462,8 +387,8 @@ export default function GMSessionPage() {
 
             broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'scene_mode', value: newState }
             });
         } catch (err) {
             console.error("Erro ao alterar modo de cena:", err);
@@ -576,10 +501,10 @@ export default function GMSessionPage() {
             setShopInventory(newInventory);
 
             // Broadcast para dar refresh na loja dos players
-            supabase.channel(`session_global_${selectedSessionId}`).send({
+            broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'shop_inventory', value: newInventory }
             });
 
         } catch (err) {
@@ -599,10 +524,10 @@ export default function GMSessionPage() {
             setShopInventory(newInventory);
 
             // Broadcast
-            supabase.channel(`session_global_${selectedSessionId}`).send({
+            broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'refresh_session',
-                payload: { targetId: 'ALL' }
+                event: 'sync_session',
+                payload: { field: 'shop_inventory', value: newInventory }
             });
         } catch (err) {
             console.error(err);
