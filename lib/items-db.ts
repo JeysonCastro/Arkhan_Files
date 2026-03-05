@@ -277,5 +277,48 @@ export const MASTER_ITEMS_DB: EquipmentItem[] = [
         type: 'Material Místico',
         quantity: 1,
         stats: 'Uso: 1d6 cargas. Revela entidades extra-dimensionais.'
+    },
+
+    // --- CONSUMÍVEIS (CURA & CULINÁRIA) ---
+    {
+        id: 'cns_guisado_tatico',
+        name: 'Guisado Caseiro Tático',
+        description: 'Uma refeição quente improvisada feita por um Cozinheiro habilidoso. O sabor de casa afasta parte do desespero e aquece o corpo machucado.',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Mecânica: Restaura 1D3 PV e 1 Ponto de Sanidade.'
+    },
+    {
+        id: 'cns_bourbon_contrabando',
+        name: 'Bourbon de Contrabando da Lei Seca',
+        description: 'Bebida de alta graduação alcoólica fornecida pelo submundo de Arkham. Entorpece a mente frente aos Horrores Cósmicos, mas cobra seu preço nas pernas.',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Mecânica: Restaura 1D4 Sanidade, impõe Desvantagem em DES por 2 horas.'
+    },
+    {
+        id: 'cns_racao_enlatada',
+        name: 'Ração Militar Enlatada',
+        description: 'Sopa de ervilhas ou feijão com carne enlatada. Ruim, mas mantém você vivo por mais um dia dentro das cavernas.',
+        type: 'Consumível',
+        quantity: 1,
+        stats: 'Mecânica: Sustento diário. Restaura 1 PV.'
+    },
+    {
+        id: 'wpn_faca_chef',
+        name: 'Faca de Chef Profissional',
+        description: 'Aço carbono meticulosamente afiado por um mestre cuca para desossar grandes animais. Corta tendões humanos feito manteiga.',
+        type: 'Arma Branca',
+        quantity: 1,
+        stats: 'Dano: 1d4+1 + BC | Crit: Sangramento',
+        imageUrl: '/assets/weapons/wpn_knife_small_1771891082367.png'
+    },
+    {
+        id: 'wpn_cutelo_acougueiro',
+        name: 'Cutelo Engordurado',
+        description: 'Pesado e coberto de manchas suspeitas de sangue de gado e algoijo. Ferramenta formidável para amputar membros à força.',
+        type: 'Arma Branca',
+        quantity: 1,
+        stats: 'Dano: 1d6 + BC'
     }
 ];

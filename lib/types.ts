@@ -24,7 +24,7 @@ export interface Weapon {
     malfunction: number;
 }
 
-export type EquipmentCategory = 'Arma' | 'Arma de Fogo' | 'Arma Branca' | 'Tomo Arcano' | 'Tomo do Mito' | 'Artefato' | 'Utilidade' | 'Ferramenta' | 'Equipamento Méd.' | 'Chave/Documento' | 'Chave' | 'Evidência' | 'Material Místico';
+export type EquipmentCategory = 'Arma' | 'Arma de Fogo' | 'Arma Branca' | 'Tomo Arcano' | 'Tomo do Mito' | 'Artefato' | 'Utilidade' | 'Ferramenta' | 'Equipamento Méd.' | 'Chave/Documento' | 'Chave' | 'Evidência' | 'Material Místico' | 'Consumível';
 
 export interface EquipmentItem {
     id: string;

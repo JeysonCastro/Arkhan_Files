@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X } from "lucide-react";
+import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -321,6 +321,37 @@ export default function PlayerSessionView() {
         }
     };
 
+    const handleRemoveItem = async (indexToRemove: number) => {
+        if (!currentUserInvestigator) return;
+
+        // Confirmação para evitar exclusão acidental
+        if (!window.confirm("Deseja realmente descartar este item da sua mochila?")) return;
+
+        try {
+            const currentData = currentUserInvestigator.rawInvestigatorData;
+            if (!currentData || !currentData.inventory) return;
+
+            const newInventory = currentData.inventory.filter((_: any, idx: number) => idx !== indexToRemove);
+
+            const { error } = await supabase
+                .from('investigators')
+                .update({
+                    data: {
+                        ...currentData,
+                        inventory: newInventory
+                    }
+                })
+                .eq('id', currentUserInvestigator.id);
+
+            if (error) {
+                console.error("Failed to update inventory:", error);
+                alert("Erro ao excluir item do banco de dados.");
+            }
+        } catch (e) {
+            console.error("Error handling item removal:", e);
+        }
+    };
+
     const handleToggleFirearm = async () => {
         if (!currentUserInvestigator) return;
         try {
@@ -558,9 +589,12 @@ export default function PlayerSessionView() {
                             <h2 className="text-2xl font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase flex items-center gap-3">
                                 <Briefcase className="w-6 h-6" /> Pertences Pessoais
                             </h2>
-                            <Button size="icon" variant="ghost" className="text-[var(--color-mythos-blood)] hover:text-red-500 hover:bg-black/20" onClick={() => setShowInventory(false)}>
-                                <X className="w-6 h-6" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-[var(--color-mythos-gold-dim)] mr-2 font-mono uppercase">Cash: ${currentUserInvestigator.rawInvestigatorData?.cash || 0}</span>
+                                <Button size="icon" variant="ghost" className="text-[var(--color-mythos-blood)] hover:text-red-500 hover:bg-black/20" onClick={() => setShowInventory(false)}>
+                                    <X className="w-6 h-6" />
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Inventory Grid */}
@@ -600,6 +634,19 @@ export default function PlayerSessionView() {
                                                 <p className="font-serif text-xs leading-relaxed text-[var(--color-mythos-parchment)]/80">
                                                     {item.description}
                                                 </p>
+
+                                                {/* Botão de Excluir */}
+                                                <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-500 hover:text-red-400 hover:bg-red-950/30 h-8 px-2"
+                                                        onClick={() => handleRemoveItem(idx)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Descartar
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
