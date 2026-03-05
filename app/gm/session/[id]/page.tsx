@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { MOCK_INVESTIGATORS } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
-import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume1, Volume2, Users } from "lucide-react";
+import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume1, Volume2, Users, Store, DollarSign, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
@@ -51,6 +51,14 @@ export default function GMSessionPage() {
 
     // Item Distribution
     const [showItemModal, setShowItemModal] = useState(false);
+
+    // Shop Management
+    const [isShopOpen, setIsShopOpen] = useState(false);
+    const [shopInventory, setShopInventory] = useState<any[]>([]);
+    const [showShopModal, setShowShopModal] = useState(false);
+    const [shopSearchQuery, setShopSearchQuery] = useState("");
+    const [itemPrice, setItemPrice] = useState("10");
+    const [itemQuantity, setItemQuantity] = useState("1");
     const [showSheetModal, setShowSheetModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [showPinboard, setShowPinboard] = useState(false);
@@ -110,6 +118,8 @@ export default function GMSessionPage() {
             setIsLightsOut(data.is_lights_out || false);
             setAmbientAudio(data.ambient_audio || 'none');
             setSceneMode(data.scene_mode || 'EXPLORATION');
+            setIsShopOpen(data.is_shop_open || false);
+            setShopInventory(data.shop_inventory || []);
         } catch (err) {
             console.error("[GMSession] Exceção em fetchSessionData:", err);
         }
@@ -262,6 +272,28 @@ export default function GMSessionPage() {
         };
     }, [user, selectedSessionId]);
 
+    // Shop Realtime Listener
+    useEffect(() => {
+        if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
+
+        const shopSub = supabase
+            .channel(`gm_shop_${selectedSessionId}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'sessions',
+                filter: `id=eq.${selectedSessionId}`
+            }, (payload) => {
+                if (payload.new) {
+                    setIsShopOpen(payload.new.is_shop_open || false);
+                    setShopInventory(payload.new.shop_inventory || []);
+                }
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(shopSub); };
+    }, [user, selectedSessionId]);
+
     // Realtime Listener for Investigator updates (HP, MP, Sanity on GM screen)
     useEffect(() => {
         if (!user || user.role !== 'KEEPER' || isLoadingData) return;
@@ -358,6 +390,31 @@ export default function GMSessionPage() {
         }
     };
 
+    const toggleShop = async () => {
+        if (!selectedSessionId) return;
+        try {
+            const newState = !isShopOpen;
+            const { error } = await supabase
+                .from('sessions')
+                .update({ is_shop_open: newState })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setIsShopOpen(newState);
+
+            // Avisar ao canal global que a porta do comércio abriu/fechou
+            supabase.channel(`session_global_${selectedSessionId}`).send({
+                type: 'broadcast',
+                event: 'shop_toggle',
+                payload: { is_shop_open: newState }
+            });
+
+        } catch (err) {
+            console.error("Erro ao alterar loja:", err);
+            alert("Erro ao alterar o status do Mercado Clandestino.");
+        }
+    };
+
     const toggleSceneMode = async () => {
         if (!selectedSessionId) return;
         try {
@@ -450,6 +507,60 @@ export default function GMSessionPage() {
         } catch (error) {
             console.error("Erro ao enviar item:", error);
             alert("Erro ao enviar o item.");
+        }
+    };
+
+    const handleAddShopItem = async (item: EquipmentItem) => {
+        try {
+            const parsedPrice = parseInt(itemPrice) || 0;
+            const parsedQty = parseInt(itemQuantity) || 1;
+
+            const newItem = {
+                ...item,
+                id: `${item.id}_${Date.now()}`,
+                price: parsedPrice,
+                stock: parsedQty
+            };
+            const newInventory = [...shopInventory, newItem];
+            const { error } = await supabase
+                .from('sessions')
+                .update({ shop_inventory: newInventory })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setShopInventory(newInventory);
+
+            // Broadcast para dar refresh na loja dos players
+            supabase.channel(`session_global_${selectedSessionId}`).send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
+
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleRemoveShopItem = async (indexToRemove: number) => {
+        try {
+            const newInventory = shopInventory.filter((_, idx) => idx !== indexToRemove);
+            const { error } = await supabase
+                .from('sessions')
+                .update({ shop_inventory: newInventory })
+                .eq('id', selectedSessionId);
+
+            if (error) throw error;
+            setShopInventory(newInventory);
+
+            // Broadcast
+            supabase.channel(`session_global_${selectedSessionId}`).send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -657,6 +768,14 @@ export default function GMSessionPage() {
                         >
                             <Volume2 className="w-4 h-4 mr-2 hidden sm:block" />
                             Sons
+                        </Button>
+                        <Button
+                            onClick={() => setShowShopModal(true)}
+                            className={`border transition-colors whitespace-nowrap flex-grow sm:flex-grow-0 justify-center font-serif tracking-widest h-10 ${isShopOpen ? 'bg-green-900 border-green-500 hover:bg-green-800 text-white shadow-[0_0_15px_rgba(0,180,0,0.5)]' : 'bg-black/40 border-[var(--color-mythos-gold-dim)]/50 text-stone-400 hover:text-stone-300'}`}
+                            title="Gerir Mercado"
+                        >
+                            <Store className="w-4 h-4 mr-2 hidden xl:block" />
+                            Mercado
                         </Button>
                         <Button
                             onClick={toggleLightsOut}
@@ -1002,6 +1121,154 @@ export default function GMSessionPage() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Shop Management Modal */}
+            {showShopModal && (
+                <div className="absolute inset-0 z-[70] bg-black/95 flex flex-col p-4 sm:p-8 backdrop-blur-md animate-in fade-in">
+                    <div className="w-full max-w-7xl mx-auto flex flex-col h-full bg-[#1a110a] border-2 border-[var(--color-mythos-gold)] rounded-md shadow-2xl relative overflow-hidden">
+
+                        <div className="flex justify-between items-center p-6 border-b border-[var(--color-mythos-gold-dim)]/30 bg-black/80 shrink-0">
+                            <div className="flex items-center gap-4">
+                                <Store className="w-8 h-8 text-[var(--color-mythos-gold)] drop-shadow-[0_0_10px_rgba(200,150,50,0.8)]" />
+                                <div>
+                                    <h3 className="text-2xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest drop-shadow-md">Mercado Clandestino</h3>
+                                    <p className="text-xs text-[var(--color-mythos-gold-dim)] font-mono uppercase tracking-widest mt-1">Gerenciamento de Estoque da Sessão</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                                <Button
+                                    onClick={toggleShop}
+                                    className={`border transition-colors whitespace-nowrap justify-center font-serif tracking-widest px-8 shadow-xl ${isShopOpen ? 'bg-green-900 border-green-500 hover:bg-green-800 text-white shadow-[0_0_15px_rgba(0,180,0,0.5)]' : 'bg-black text-[var(--color-mythos-blood)] border-red-900 hover:bg-black/50 hover:text-red-400'}`}
+                                >
+                                    {isShopOpen ? 'PORTAS ABERTAS (TUDO À VENDA)' : 'MERCADO FECHADO'}
+                                </Button>
+                                <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-400 hover:bg-red-900/30 w-10 h-10" onClick={() => setShowShopModal(false)}>
+                                    <X className="w-6 h-6" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-1 overflow-hidden">
+                            {/* Left Side: Adding Items to Shop */}
+                            <div className="w-1/2 flex flex-col border-r border-[var(--color-mythos-gold-dim)]/30 bg-black/40">
+                                <div className="p-4 bg-black/60 border-b border-[var(--color-mythos-gold-dim)]/20 shadow-inner flex flex-col gap-4">
+                                    <h4 className="text-sm font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Catálogo Disponível</h4>
+                                    <div className="flex gap-4">
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar item..."
+                                            value={shopSearchQuery}
+                                            onChange={(e) => setShopSearchQuery(e.target.value)}
+                                            className="flex-1 bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 p-2 text-[var(--color-mythos-gold)] text-sm focus:outline-none focus:border-[var(--color-mythos-gold)] placeholder:text-[var(--color-mythos-gold-dim)]/50"
+                                        />
+                                        <div className="flex items-center gap-2 bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 p-1 px-3">
+                                            <label className="text-xs text-[var(--color-mythos-gold-dim)] font-mono">QTD:</label>
+                                            <input
+                                                type="number"
+                                                value={itemQuantity}
+                                                onChange={e => setItemQuantity(e.target.value)}
+                                                className="w-12 bg-transparent text-white text-center font-bold focus:outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 p-1 px-3">
+                                            <span className="text-green-500 font-bold">$</span>
+                                            <input
+                                                type="number"
+                                                value={itemPrice}
+                                                onChange={e => setItemPrice(e.target.value)}
+                                                className="w-16 bg-transparent text-green-400 font-mono focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold-dim)]">
+                                    {[...MASTER_ITEMS_DB, ...customItems].filter(item =>
+                                        item.name.toLowerCase().includes(shopSearchQuery.toLowerCase()) ||
+                                        item.type.toLowerCase().includes(shopSearchQuery.toLowerCase())
+                                    ).map(item => (
+                                        <div key={item.id} className="flex justify-between items-center p-3 bg-black/80 border border-[var(--color-mythos-gold-dim)]/20 hover:border-[var(--color-mythos-gold)] transition-colors group">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-black border border-[var(--color-mythos-gold-dim)]/30 rounded overflow-hidden">
+                                                    {(item.imageUrl || item.image_url) ? (
+                                                        <img src={item.imageUrl || item.image_url} className="w-full h-full object-cover sepia-[0.3]" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-mythos-gold-dim)]/30">
+                                                            <span className="text-[8px] uppercase font-serif">N/A</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[var(--color-mythos-parchment)] font-bold uppercase text-sm">{item.name}</span>
+                                                    <span className="text-[var(--color-mythos-gold-dim)] text-[10px] tracking-widest uppercase">{item.type}</span>
+                                                </div>
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                className="border-[var(--color-mythos-gold)] text-[var(--color-mythos-gold)] hover:bg-[var(--color-mythos-gold)] hover:text-black shrink-0"
+                                                onClick={() => handleAddShopItem(item)}
+                                            >
+                                                <Plus className="w-4 h-4 mr-1" />
+                                                Add ao Estoque
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Right Side: Current Shop Inventory */}
+                            <div className="w-1/2 flex flex-col bg-[url('/paper-texture.png')] bg-cover" style={{ backgroundBlendMode: 'multiply', backgroundColor: '#1a1815' }}>
+                                <div className="p-4 bg-black/40 border-b border-black/30 backdrop-blur-sm">
+                                    <h4 className="text-sm font-heading text-[var(--color-mythos-blood)] uppercase tracking-widest text-center">Nas Prateleiras (Visível aos Jogadores)</h4>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-[var(--color-mythos-blood)]">
+                                    {shopInventory.length === 0 ? (
+                                        <div className="text-center text-[var(--color-mythos-gold-dim)]/50 italic font-serif mt-12">O estoque está vazio.</div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                            {shopInventory.map((item, idx) => (
+                                                <div key={`${item.id}_${idx}`} className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)] p-3 relative shadow-xl overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 bg-green-900 border-l border-b border-[var(--color-mythos-gold-dim)] px-3 text-green-400 font-mono font-bold shadow-md z-10 text-sm">
+                                                        ${item.price}
+                                                    </div>
+                                                    <div className="absolute top-0 right-14 bg-blue-900 border-l border-b border-[var(--color-mythos-gold-dim)] px-2 text-white font-mono font-bold shadow-md z-10 text-[10px] h-[21px] flex items-center">
+                                                        {item.stock} UNID.
+                                                    </div>
+
+                                                    <div className="flex gap-3 relative z-0 mt-3 pt-1">
+                                                        <div className="w-12 h-12 bg-black shrink-0 border border-[var(--color-mythos-gold-dim)]/30 rounded">
+                                                            {(item.imageUrl || item.image_url) ? (
+                                                                <img src={item.imageUrl || item.image_url} className="w-full h-full object-cover sepia-[0.3]" />
+                                                            ) : null}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="font-heading text-[var(--color-mythos-gold)] uppercase text-sm leading-tight pr-2 truncate">{item.name}</div>
+                                                            <div className="text-[10px] uppercase text-[var(--color-mythos-gold-dim)]/70">{item.type}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Hover Overlay Delete */}
+                                                    <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                                                        <Button
+                                                            variant="ghost"
+                                                            className="text-red-500 hover:text-white hover:bg-red-800 border border-red-900"
+                                                            onClick={() => handleRemoveShopItem(idx)}
+                                                        >
+                                                            <Trash2 className="w-4 h-4 mr-2" />
+                                                            Remover da Loja
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

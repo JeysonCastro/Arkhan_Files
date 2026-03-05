@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X, Trash2, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -31,6 +31,11 @@ export default function PlayerSessionView() {
 
     // Backpack State
     const [showInventory, setShowInventory] = useState(false);
+
+    // Shop State
+    const [isShopOpen, setIsShopOpen] = useState(false);
+    const [shopInventory, setShopInventory] = useState<any[]>([]);
+    const [showShopModal, setShowShopModal] = useState(false);
 
     // Pinboard State
     const [showPinboard, setShowPinboard] = useState(false);
@@ -68,7 +73,7 @@ export default function PlayerSessionView() {
             // 1. Fetch Session Info
             const { data: sessionInfo, error: sessionError } = await supabase
                 .from('sessions')
-                .select('name, is_active, is_lights_out, ambient_audio, scene_mode')
+                .select('name, is_active, is_lights_out, ambient_audio, scene_mode, is_shop_open, shop_inventory')
                 .eq('id', sessionId)
                 .single();
 
@@ -78,6 +83,8 @@ export default function PlayerSessionView() {
             }
             console.log("[PlayerSession] Session info loaded:", sessionInfo);
             setSessionData(sessionInfo);
+            setIsShopOpen(sessionInfo.is_shop_open || false);
+            setShopInventory(sessionInfo.shop_inventory || []);
 
             // 2. Fetch all characters in this session via junction table
             const { data: charsData, error: charsError } = await supabase
@@ -214,8 +221,12 @@ export default function PlayerSessionView() {
                     ...prev,
                     is_lights_out: payload.new.is_lights_out,
                     ambient_audio: payload.new.ambient_audio,
-                    scene_mode: payload.new.scene_mode
+                    scene_mode: payload.new.scene_mode,
+                    is_shop_open: payload.new.is_shop_open,
+                    shop_inventory: payload.new.shop_inventory
                 }));
+                setIsShopOpen(payload.new.is_shop_open || false);
+                setShopInventory(payload.new.shop_inventory || []);
             })
             .on('broadcast', { event: 'play_sound' }, (payload) => {
                 const url = payload.payload?.soundUrl;
@@ -349,6 +360,66 @@ export default function PlayerSessionView() {
             }
         } catch (e) {
             console.error("Error handling item removal:", e);
+        }
+    };
+
+    const handleBuyItem = async (itemIndex: number) => {
+        if (!currentUserInvestigator) return;
+
+        const item = shopInventory[itemIndex];
+        const currentData = currentUserInvestigator.rawInvestigatorData;
+        const currentCash = currentData?.cash || 0;
+
+        if (currentCash < item.price) {
+            alert("Dinheiro insuficiente para comprar este item!");
+            return;
+        }
+
+        if (!window.confirm(`Gastar $${item.price} para comprar ${item.name}?`)) return;
+
+        try {
+            // Deduct cash and add item to buyer
+            const newItemInst = { ...item, id: `${item.id}_${Date.now()}` };
+            delete newItemInst.stock;
+            delete newItemInst.price;
+
+            const newInventoryBuyer = [...(currentData.inventory || []), newItemInst];
+            const newCash = currentCash - item.price;
+
+            const { error: invError } = await supabase
+                .from('investigators')
+                .update({ data: { ...currentData, cash: newCash, inventory: newInventoryBuyer } })
+                .eq('id', currentUserInvestigator.id);
+
+            if (invError) throw invError;
+
+            // Deduct stock from global shop
+            const newShopInventory = [...shopInventory];
+            newShopInventory[itemIndex] = { ...newShopInventory[itemIndex], stock: newShopInventory[itemIndex].stock - 1 };
+
+            if (newShopInventory[itemIndex].stock <= 0) {
+                newShopInventory.splice(itemIndex, 1);
+            }
+
+            const { error: shopError } = await supabase
+                .from('sessions')
+                .update({ shop_inventory: newShopInventory })
+                .eq('id', params.id as string);
+
+            if (shopError) throw shopError;
+
+            // Broadcast refresh
+            supabase.channel(`session_global_${params.id}`).send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
+
+            alert(`Você comprou ${item.name}!`);
+
+        } catch (err) {
+            console.error("Error buying item:", err);
+            alert("Erro ao processar compra.");
         }
     };
 
@@ -535,6 +606,18 @@ export default function PlayerSessionView() {
 
                                     {/* Botões de Ação Rápida (Combate e Exploração) */}
                                     <div className="flex gap-2 mb-8 z-50 -mt-6">
+                                        {/* Botão de Loja (Mercado Clandestino) - Aparece se tiver aberta ou com itens */}
+                                        {isShopOpen && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setShowShopModal(true)}
+                                                className="border shadow-[0_0_25px_rgba(20,150,20,0.6)] font-sans uppercase tracking-widest gap-2 hover:scale-105 hover:bg-green-900 transition-all text-xs w-48 bg-green-950/60 border-green-500 text-green-400 font-bold animate-pulse"
+                                            >
+                                                <Store className="w-4 h-4" />
+                                                MERCADO ABERTO
+                                            </Button>
+                                        )}
+
                                         <Button
                                             variant="outline"
                                             onClick={handleToggleFirearm}
@@ -670,6 +753,104 @@ export default function PlayerSessionView() {
                         isGM={false}
                     />
                 </SanityEffectProvider>,
+                document.body
+            )}
+
+            {/* Shop Interface Modal */}
+            {mounted && showShopModal && createPortal(
+                <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
+                    <div className="w-full max-w-5xl h-[85vh] bg-[url('/paper-texture.png')] bg-cover relative flex flex-col shadow-2xl rounded" style={{ backgroundBlendMode: 'multiply', backgroundColor: '#1a1815' }}>
+
+                        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-[var(--color-mythos-gold-dim)]/50 bg-black/60">
+                            <div className="flex items-center gap-4">
+                                <Store className="w-8 h-8 text-green-500 drop-shadow-[0_0_10px_rgba(0,180,0,0.8)]" />
+                                <div>
+                                    <h2 className="text-2xl sm:text-3xl font-heading text-[var(--color-mythos-gold)] tracking-widest uppercase">Mercado Clandestino</h2>
+                                    <p className="text-xs text-[var(--color-mythos-gold-dim)]/80 italic font-serif">O que está na vitrine hoje, amanhã pode estar na cena do crime.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="hidden sm:flex flex-col items-end mr-4 font-mono">
+                                    <span className="text-[10px] text-[var(--color-mythos-gold-dim)] uppercase tracking-widest">Saldo em Caixinha:</span>
+                                    <span className="text-xl text-green-400 drop-shadow-md">${currentUserInvestigator?.rawInvestigatorData?.cash || 0}</span>
+                                </div>
+                                <Button size="icon" variant="ghost" className="text-[var(--color-mythos-blood)] hover:text-red-500 hover:bg-black/20 transform hover:scale-110" onClick={() => setShowShopModal(false)}>
+                                    <X className="w-6 h-6" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 shrink-0 scrollbar-thin scrollbar-thumb-[var(--color-mythos-gold-dim)]">
+                            {(!isShopOpen) ? (
+                                <div className="h-full flex flex-col items-center justify-center text-[var(--color-mythos-gold-dim)] p-8">
+                                    <Store className="w-20 h-20 mb-6 opacity-20" />
+                                    <p className="text-2xl font-serif text-center uppercase tracking-widest text-[#5a4838]">A Loja Encontra-se Fechada</p>
+                                    <p className="text-sm font-sans mt-2 opacity-60">O Guardião encerrou as transações de emergência.</p>
+                                </div>
+                            ) : (!shopInventory || shopInventory.length === 0) ? (
+                                <div className="h-full flex flex-col items-center justify-center text-[var(--color-mythos-gold-dim)] p-8 text-center">
+                                    <p className="text-2xl font-serif">As prateleiras estão vazias...</p>
+                                    <p className="opacity-60 text-sm mt-2 max-w-md">Parece que os saqueadores já levaram tudo. Aguarde novas remessas ou vasculhe o lixo.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {shopInventory.map((item, idx) => {
+                                        const currentCash = currentUserInvestigator?.rawInvestigatorData?.cash || 0;
+                                        const canAfford = currentCash >= item.price;
+                                        return (
+                                            <div key={`${item.id}_${idx}`} className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 rounded-sm relative shadow-xl hover:border-[var(--color-mythos-gold)] transition-all flex flex-col hover:-translate-y-1">
+                                                {/* Preço Header */}
+                                                <div className="absolute top-0 right-0 z-10 font-mono text-sm shadow-md">
+                                                    <div className={`px-4 py-1 border-b border-l ${canAfford ? 'bg-green-900 border-green-500 text-green-400' : 'bg-red-950 border-red-900 text-red-500 line-through decoration-black'}`}>
+                                                        ${item.price}
+                                                    </div>
+                                                </div>
+
+                                                {/* Stock Label */}
+                                                <div className="absolute top-0 left-0 bg-blue-900/80 border-b border-right border-[var(--color-mythos-gold-dim)]/40 px-2 py-0.5 z-10">
+                                                    <span className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">{item.stock} UNID.</span>
+                                                </div>
+
+                                                <div className="flex gap-4 p-4 mt-6 items-center">
+                                                    <div className="w-16 h-16 bg-black flex-shrink-0 border border-[var(--color-mythos-gold-dim)]/30 rounded overflow-hidden shadow-inner">
+                                                        {item.imageUrl ? (
+                                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover sepia-[0.3]" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-mythos-gold-dim)]/30">
+                                                                <span className="text-[8px] uppercase font-serif">Sem Foto</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-heading font-medium uppercase text-[var(--color-mythos-gold)] leading-tight">{item.name}</h4>
+                                                        <p className="text-[10px] text-[var(--color-mythos-gold-dim)]/80 uppercase tracking-widest">{item.type}</p>
+                                                        {item.stats && (
+                                                            <p className="text-[9px] font-mono text-blue-400 mt-1 uppercase max-w-full truncate">{item.stats}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="px-4 pb-4 mt-auto">
+                                                    <p className="text-xs font-serif italic text-[var(--color-mythos-parchment)]/70 mb-4 line-clamp-3">
+                                                        "{item.description}"
+                                                    </p>
+
+                                                    <Button
+                                                        disabled={!canAfford}
+                                                        onClick={() => handleBuyItem(idx)}
+                                                        className={`w-full font-serif uppercase tracking-widest ${canAfford ? 'bg-green-900 hover:bg-green-800 text-green-100 hover:scale-[1.02] shadow-[0_5px_15px_rgba(0,100,0,0.5)]' : 'bg-black border border-red-900/50 text-red-900/50 cursor-not-allowed'}`}
+                                                    >
+                                                        {canAfford ? 'Comprar Item' : 'Sem Fundos Suficientes'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
                 document.body
             )}
 
