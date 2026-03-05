@@ -798,7 +798,7 @@ export default function PlayerSessionView() {
                                         const currentCash = currentUserInvestigator?.rawInvestigatorData?.cash || 0;
                                         const canAfford = currentCash >= item.price;
                                         return (
-                                            <div key={`${item.id}_${idx}`} className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 rounded-sm relative shadow-xl hover:border-[var(--color-mythos-gold)] transition-all flex flex-col hover:-translate-y-1">
+                                            <div key={`${item.id}_${idx}`} className="bg-[#120a0a] border border-[var(--color-mythos-gold-dim)]/50 rounded-sm relative shadow-xl hover:border-[var(--color-mythos-gold)] transition-all flex flex-col hover:-translate-y-1 h-full min-h-[300px]">
                                                 {/* Preço Header */}
                                                 <div className="absolute top-0 right-0 z-10 font-mono text-sm shadow-md">
                                                     <div className={`px-4 py-1 border-b border-l ${canAfford ? 'bg-green-900 border-green-500 text-green-400' : 'bg-red-950 border-red-900 text-red-500 line-through decoration-black'}`}>
@@ -831,7 +831,7 @@ export default function PlayerSessionView() {
                                                 </div>
 
                                                 <div className="px-4 pb-4 mt-auto">
-                                                    <p className="text-xs font-serif italic text-[var(--color-mythos-parchment)]/70 mb-4 line-clamp-3">
+                                                    <p className="text-xs font-serif italic text-[var(--color-mythos-parchment)]/70 mb-4 line-clamp-4">
                                                         "{item.description}"
                                                     </p>
 

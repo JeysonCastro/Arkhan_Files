@@ -237,6 +237,28 @@ export default function GMSessionPage() {
                     }
                 }
             )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'sessions',
+                    filter: `id=eq.${selectedSessionId}`
+                },
+                (payload) => {
+                    console.log("[GM_REALTIME] Session Updated:", payload.new);
+                    setSessionData((prev: any) => ({
+                        ...prev,
+                        is_lights_out: payload.new.is_lights_out,
+                        ambient_audio: payload.new.ambient_audio,
+                        scene_mode: payload.new.scene_mode,
+                        is_shop_open: payload.new.is_shop_open,
+                        shop_inventory: payload.new.shop_inventory
+                    }));
+                    setIsShopOpen(payload.new.is_shop_open || false);
+                    setShopInventory(payload.new.shop_inventory || []);
+                }
+            )
             .subscribe((status) => {
                 console.log("Supabase GM Realtime Status:", status);
             });
@@ -1108,14 +1130,14 @@ export default function GMSessionPage() {
                                         </div>
 
                                         {/* Body: Description */}
-                                        <div className="pt-3 border-t border-[var(--color-mythos-gold-dim)]/10 flex-1 flex flex-col justify-between">
-                                            <p className="font-serif text-xs leading-relaxed text-[var(--color-mythos-parchment)]/80">
+                                        <div className="pt-3 border-t border-[var(--color-mythos-gold-dim)]/10 flex-1 flex flex-col justify-between overflow-hidden">
+                                            <p className="font-serif text-xs leading-relaxed text-[var(--color-mythos-parchment)]/80 line-clamp-4">
                                                 {item.description}
                                             </p>
                                         </div>
 
                                         {/* Enviar hover overlay */}
-                                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[var(--color-mythos-gold)] z-20 rounded-md backdrop-blur-sm">
+                                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[var(--color-mythos-gold)] z-20 rounded-md backdrop-blur-sm p-4 text-center">
                                             <Heart className="w-10 h-10 mb-3 animate-pulse text-[var(--color-mythos-blood)] drop-shadow-[0_0_15px_rgba(150,0,0,0.8)]" />
                                             <span className="font-bold font-serif uppercase tracking-widest text-base drop-shadow-md">Entregar Item</span>
                                         </div>
