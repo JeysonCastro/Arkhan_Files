@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -22,6 +22,7 @@ export default function PlayerSessionView() {
     const params = useParams();
     const router = useRouter();
     const { user, isLoading } = useAuth();
+    const globalChannelRef = useRef<any>(null);
 
     const [sessionData, setSessionData] = useState<any>(null);
     const [companions, setCompanions] = useState<any[]>([]);
@@ -209,7 +210,7 @@ export default function PlayerSessionView() {
 
         // 2. Global Session & Audio Broadcast Channel
         const sessionSub = supabase
-            .channel(`session_global_${sessionId}`)
+            .channel(`session_global_${sessionId}`, { config: { broadcast: { self: true, ack: true } } })
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
@@ -270,9 +271,12 @@ export default function PlayerSessionView() {
                 console.log(`Supabase Realtime (Global) [${sessionId}]:`, status);
             });
 
+        globalChannelRef.current = sessionSub;
+
         return () => {
             supabase.removeChannel(invSubscription);
             supabase.removeChannel(sessionSub);
+            globalChannelRef.current = null;
         };
     }, [params.id, isLoadingData]);
 
@@ -409,7 +413,7 @@ export default function PlayerSessionView() {
             if (shopError) throw shopError;
 
             // Broadcast refresh
-            supabase.channel(`session_global_${params.id}`).send({
+            globalChannelRef.current?.send({
                 type: 'broadcast',
                 event: 'refresh_session',
                 payload: { targetId: 'ALL' }

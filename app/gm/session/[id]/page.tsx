@@ -273,11 +273,16 @@ export default function GMSessionPage() {
     useEffect(() => {
         if (!user || user.role !== 'KEEPER' || !selectedSessionId) return;
 
-        console.log("Setting up GM Broadcast Channel:", selectedSessionId);
         const channel = supabase.channel(`session_global_${selectedSessionId}`, {
             config: {
-                broadcast: { self: true }
+                broadcast: { self: true, ack: true }
             }
+        });
+
+        channel.on('broadcast', { event: 'refresh_session' }, () => {
+            console.log("[GM_BROADCAST] Refresh forçado recebido da mesa.");
+            fetchSessionData();
+            fetchInvestigators(selectedSessionId);
         });
 
         channel.subscribe((status) => {
@@ -406,6 +411,12 @@ export default function GMSessionPage() {
             } else {
                 console.log("As luzes se acenderam na sessão.");
             }
+
+            broadcastChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
         } catch (err) {
             console.error("Erro ao alterar iluminação:", err);
             alert("Erro ao alterar a iluminação global da sessão.");
@@ -425,10 +436,10 @@ export default function GMSessionPage() {
             setIsShopOpen(newState);
 
             // Avisar ao canal global que a porta do comércio abriu/fechou
-            supabase.channel(`session_global_${selectedSessionId}`).send({
+            broadcastChannelRef.current?.send({
                 type: 'broadcast',
-                event: 'shop_toggle',
-                payload: { is_shop_open: newState }
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
             });
 
         } catch (err) {
@@ -448,6 +459,12 @@ export default function GMSessionPage() {
 
             if (error) throw error;
             setSceneMode(newState);
+
+            broadcastChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
         } catch (err) {
             console.error("Erro ao alterar modo de cena:", err);
             alert("Erro ao alterar o modo de cena.");
@@ -464,6 +481,12 @@ export default function GMSessionPage() {
 
             if (error) throw error;
             setAmbientAudio(track);
+
+            broadcastChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'refresh_session',
+                payload: { targetId: 'ALL' }
+            });
         } catch (err) {
             console.error("Erro ao alterar áudio:", err);
             alert("Erro ao alterar o áudio ambiente.");
