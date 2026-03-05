@@ -325,6 +325,17 @@ export default function PlayerSessionView() {
             if (error) {
                 console.error("Failed to update luck:", error);
                 alert("Erro ao debitar Sorte no banco de dados.");
+            } else {
+                globalChannelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'refresh_session',
+                    payload: {}
+                });
+                globalChannelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'status_update',
+                    payload: { investigatorId: currentUserInvestigator.id, field: 'attributes', value: updatedAttributes }
+                });
             }
         } catch (e) {
             console.error("Error handling luck spend:", e);
@@ -362,6 +373,7 @@ export default function PlayerSessionView() {
                     event: 'status_update',
                     payload: { investigatorId: currentUserInvestigator.id, field: 'inventory', value: newInventory }
                 });
+                globalChannelRef.current?.send({ type: 'broadcast', event: 'refresh_session', payload: {} });
             }
         } catch (e) {
             console.error("Error handling item removal:", e);
@@ -425,6 +437,7 @@ export default function PlayerSessionView() {
                 event: 'status_update',
                 payload: { investigatorId: currentUserInvestigator.id, field: 'inventory', value: newInventoryBuyer }
             });
+            globalChannelRef.current?.send({ type: 'broadcast', event: 'refresh_session', payload: {} });
 
             alert(`Você comprou ${item.name}!`);
 

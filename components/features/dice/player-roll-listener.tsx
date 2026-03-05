@@ -24,14 +24,16 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
     useEffect(() => {
         if (!sessionId || !investigatorId) return;
 
-        // Fetch any existing pending request first
+        // Fetch any existing pending request first (only recent ones to prevent zombies)
         const fetchPending = async () => {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
             const { data } = await supabase
                 .from('roll_requests')
                 .select('*')
                 .eq('session_id', sessionId)
                 .eq('investigator_id', investigatorId)
                 .eq('status', 'PENDING')
+                .gte('created_at', fiveMinutesAgo)
                 .order('created_at', { ascending: false })
                 .limit(1);
 
@@ -55,6 +57,19 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
                     setVisualDiceResult(null);
                     setSpendingLuck(false);
                     setIsPushing(false);
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'roll_requests',
+                filter: `investigator_id=eq.${investigatorId}`
+            }, (payload) => {
+                // Se o Mestre cancelar ou alguma outra aba finalizar a rolagem, some da tela
+                if (payload.new.status === 'CANCELLED' || payload.new.status === 'ROLLED') {
+                    if (activeRequest && activeRequest.id === payload.new.id) {
+                        dismissRoll();
+                    }
                 }
             })
             // Listen to updates in case the GM cancels it or something (optional)
@@ -163,8 +178,8 @@ export function PlayerRollListener({ sessionId, investigatorId, currentLuck = 0,
         setIsRolling(false);
         setSpendingLuck(false);
 
-        // Auto-dismiss after 4 seconds
-        setTimeout(dismissRoll, 4000);
+        // Auto-dismiss immediately upon submission logic (we assume fetch takes a minor diff but UI must close)
+        dismissRoll();
     };
 
     const handleSpendLuck = () => {
