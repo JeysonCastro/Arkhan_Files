@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { MOCK_INVESTIGATORS } from "@/lib/mock-data";
 import { Card } from "@/components/ui/card";
-import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume1, Volume2, Users, Store, DollarSign, Trash2 } from "lucide-react";
+import { Eye, Heart, Brain, Zap, X, Monitor, RefreshCw, Plus, Volume1, Volume2, Users, Store, DollarSign, Trash2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Investigator } from "@/lib/types";
 import CharacterSheetDisplay from "@/components/features/character-sheet/character-sheet-display";
@@ -67,6 +67,11 @@ export default function GMSessionPage() {
     const [masterVolume, setMasterVolume] = useState(1.0);
     const [searchQuery, setSearchQuery] = useState("");
     const [customItems, setCustomItems] = useState<any[]>([]);
+
+    // Handout System (Pistas)
+    const [showHandoutModal, setShowHandoutModal] = useState(false);
+    const [handoutUrl, setHandoutUrl] = useState("");
+    const [handoutTitle, setHandoutTitle] = useState("");
 
     // Persistent Broadcast Channel Ref e Multiplex Lock
     const broadcastChannelRef = useRef<any>(null);
@@ -280,11 +285,23 @@ export default function GMSessionPage() {
             })
             .on('broadcast', { event: 'status_update' }, (payload) => {
                 const { investigatorId, field, value } = payload.payload;
-                console.log(`[REALTIME_SYNC] GM: Investigador alterou próprio status: ${field} = ${value}`);
-                setInvestigators(prev => prev.map(inv => inv.id === investigatorId ? { ...inv, [field]: value } : inv));
-                if (selectedId === investigatorId) {
-                    setInvestigator((prev: any) => prev ? { ...prev, [field]: value } : null);
-                }
+                console.log(`[REALTIME_SYNC] GM: Investigador alterou próprio status: ${field} =`, value);
+
+                setInvestigators(prev => prev.map(inv => {
+                    if (inv.id === investigatorId) {
+                        const updated = {
+                            ...inv,
+                            [field]: value,
+                            rawInvestigatorData: {
+                                ...(inv.rawInvestigatorData || {}),
+                                [field]: value
+                            }
+                        };
+                        if (selectedId === investigatorId) setInvestigator(updated);
+                        return updated;
+                    }
+                    return inv;
+                }));
             });
 
         // 5. Connect and hold Ref
@@ -667,6 +684,29 @@ export default function GMSessionPage() {
         }
     };
 
+    const handleSendHandout = () => {
+        if (!handoutUrl) {
+            alert("É necessário inserir a URL da imagem da pista.");
+            return;
+        }
+
+        console.log(`[GM_HANDOUT] Enviando pista visual a todos os jogadores conectados.`);
+        try {
+            broadcastChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'show_handout',
+                payload: { url: handoutUrl, title: handoutTitle }
+            });
+            setShowHandoutModal(false);
+            setHandoutUrl("");
+            setHandoutTitle("");
+            alert("Pista enviada aos investigadores!");
+        } catch (error) {
+            console.error("Erro ao enviar handout", error);
+            alert("Erro na rede. Tente novamente.");
+        }
+    };
+
     const handleSendRollRequest = async () => {
         if (!selectedId || !selectedSessionId || !rollSkillName) {
             alert("Preencha a perícia e selecione uma sessão específica primeiro.");
@@ -755,6 +795,14 @@ export default function GMSessionPage() {
                         >
                             <Volume2 className="w-4 h-4 mr-2 hidden sm:block" />
                             Sons
+                        </Button>
+                        <Button
+                            onClick={() => setShowHandoutModal(true)}
+                            className="bg-black/40 border border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] hover:bg-[var(--color-mythos-gold)]/10 transition-colors whitespace-nowrap flex-grow sm:flex-grow-0 justify-center h-10"
+                            title="Atirar Pista Visual"
+                        >
+                            <ImagePlus className="w-4 h-4 mr-2 hidden sm:block text-[var(--color-mythos-blood)]" />
+                            Pistas
                         </Button>
                         <Button
                             onClick={() => setShowShopModal(true)}
@@ -1311,6 +1359,63 @@ export default function GMSessionPage() {
                     </div>
                 </div>
             )}
+
+            {/* Handout/Pistas Modal */}
+            {showHandoutModal && (
+                <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-[#120a0a] border border-[var(--color-mythos-gold)] rounded-md shadow-[0_0_30px_rgba(255,215,0,0.1)] w-full max-w-lg p-6 relative">
+                        <div className="flex justify-between items-center mb-6 border-b border-[var(--color-mythos-gold)]/30 pb-4">
+                            <div>
+                                <h3 className="text-xl font-heading text-[var(--color-mythos-gold)] uppercase tracking-widest">Atirar Handout</h3>
+                                <p className="text-[10px] text-gray-500 font-mono mt-1">Imagens aparecem instantaneamente na tela de todos os Jogadores.</p>
+                            </div>
+                            <Button size="icon" variant="ghost" className="text-[var(--color-mythos-gold)] hover:text-white" onClick={() => setShowHandoutModal(false)}>
+                                <X className="w-6 h-6" />
+                            </Button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs uppercase text-[var(--color-mythos-gold-dim)] font-bold mb-2 block">Link da Imagem (URL)</label>
+                                <Input
+                                    value={handoutUrl}
+                                    onChange={(e) => setHandoutUrl(e.target.value)}
+                                    placeholder="https://exemplo.com/cartavellha.png"
+                                    className="bg-black border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] font-mono text-sm"
+                                />
+                                <p className="text-[9px] text-zinc-600 mt-1 italic">Dica: Use links diretos do Google Images ou Discord. Se deixar a UI quebrada no preview abaio, não vai carregar pros players.</p>
+                            </div>
+                            <div>
+                                <label className="text-xs uppercase text-[var(--color-mythos-gold-dim)] font-bold mb-2 block">Nome da Pista (Opcional)</label>
+                                <Input
+                                    value={handoutTitle}
+                                    onChange={(e) => setHandoutTitle(e.target.value)}
+                                    placeholder="Ex: Carta de John Johns"
+                                    className="bg-black border-[var(--color-mythos-gold-dim)]/50 text-[var(--color-mythos-parchment)] font-serif"
+                                />
+                            </div>
+
+                            {handoutUrl && (
+                                <div className="mt-4 p-2 bg-black/50 border border-white/5 rounded flex flex-col items-center justify-center">
+                                    <p className="text-[10px] uppercase text-gray-500 mb-2 font-mono">Pré-visualização do Guardião</p>
+                                    <div className="max-h-40 overflow-hidden relative group">
+                                        <img src={handoutUrl} alt="Preview" className="object-contain max-h-40 filter sepia-[0.2] transition-transform duration-1000 group-hover:scale-105" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                    </div>
+                                </div>
+                            )}
+
+                            <Button
+                                onClick={handleSendHandout}
+                                className="w-full mt-6 bg-green-900 hover:bg-green-800 text-white border border-green-500 font-serif tracking-widest uppercase py-6"
+                                disabled={!handoutUrl}
+                            >
+                                <ImagePlus className="w-5 h-5 mr-2" />
+                                Transmitir à Mesa
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Live Rolls Sidebar Log (Right Panel) */}
             {selectedSessionId !== 'ALL' && activeRolls.length > 0 && (
                 <div className="fixed top-24 right-4 bottom-4 w-72 pointer-events-none z-[60] flex flex-col justify-end pb-8">

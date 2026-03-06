@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X, Trash2, Store } from "lucide-react";
+import { ArrowLeft, Users, Brain, Heart, Zap, User, Skull, Briefcase, X, Trash2, Store, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -44,6 +44,7 @@ export default function PlayerSessionView() {
 
     // Handout / Secret Delivery Modal State
     const [receivedItem, setReceivedItem] = useState<any | null>(null);
+    const [activeHandout, setActiveHandout] = useState<{ url: string, title?: string } | null>(null);
 
     // Fog of War / Flashlight state
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -261,6 +262,10 @@ export default function PlayerSessionView() {
                 if (field === 'scene_mode') setSessionData((prev: any) => ({ ...prev, scene_mode: value }));
                 if (field === 'ambient_audio') setSessionData((prev: any) => ({ ...prev, ambient_audio: value }));
             })
+            .on('broadcast', { event: 'show_handout' }, (payload) => {
+                console.log("[REALTIME_SYNC] Handout/Pista recebida do Mestre:", payload.payload);
+                setActiveHandout(payload.payload);
+            })
             .subscribe((status) => {
                 console.log(`[REALTIME_SYNC] Multiplex Status da Mesa:`, status);
             });
@@ -377,6 +382,125 @@ export default function PlayerSessionView() {
             }
         } catch (e) {
             console.error("Error handling item removal:", e);
+        }
+    };
+
+    const handleConsumeItem = async (indexToConsume: number) => {
+        if (!currentUserInvestigator) return;
+        const currentData = currentUserInvestigator.rawInvestigatorData;
+        if (!currentData || !currentData.inventory) return;
+
+        const item = currentData.inventory[indexToConsume];
+        if (!item) return;
+
+        // Parse stats if exists
+        let hpGained = 0;
+        let sanGained = 0;
+
+        if (item.stats) {
+            const parseHealString = (str: string) => {
+                const upper = str.toUpperCase();
+                const match = upper.match(/(\d+)D(\d+)/);
+                if (match) {
+                    const count = parseInt(match[1]);
+                    const faces = parseInt(match[2]);
+                    let total = 0;
+                    for (let i = 0; i < count; i++) {
+                        total += Math.floor(Math.random() * faces) + 1;
+                    }
+                    return total;
+                }
+                const numMatch = str.match(/\+?(\d+)/);
+                if (numMatch) return parseInt(numMatch[1]);
+                return 0;
+            };
+
+            const statsUpper = item.stats.toUpperCase();
+
+            const hpRegex = /([+-]?\d*D?\d+)\s*(PV|HP|VIDA)/;
+            const hpMatch = statsUpper.match(hpRegex);
+            if (hpMatch) hpGained = parseHealString(hpMatch[1]);
+
+            const sanRegex = /([+-]?\d*D?\d+)\s*(SAN|SANIDADE)/;
+            const sanMatch = statsUpper.match(sanRegex);
+            if (sanMatch) sanGained = parseHealString(sanMatch[1]);
+        }
+
+        if (sanGained === 0 && hpGained === 0 && item.type !== 'Consumível') {
+            alert("Este item não possui propriedades curativas e não é um consumível padrão.");
+            return;
+        }
+
+        const confirmText = hpGained || sanGained
+            ? `Deseja beber/comer ${item.name}? Pode tentar recuperar status.`
+            : `Consumir/utilizar ${item.name}? Ele sumirá da mochila.`;
+
+        if (!window.confirm(confirmText)) return;
+
+        try {
+            // Aplica cura matematicamente caso haja target
+            const startHp = currentData.hp ? currentData.hp.current : 0;
+            const maxHp = currentData.hp ? currentData.hp.max : 0;
+            const startSan = currentData.sanity ? currentData.sanity.current : 0;
+            const maxSan = currentData.sanity ? currentData.sanity.max : 0;
+
+            const newHp = currentData.hp ? Math.min(startHp + hpGained, maxHp) : 0;
+            const newSan = currentData.sanity ? Math.min(startSan + sanGained, maxSan) : 0;
+
+            const realHpGained = newHp - startHp;
+            const realSanGained = newSan - startSan;
+
+            // Remove o item consumido
+            const newInventory = currentData.inventory.filter((_: any, idx: number) => idx !== indexToConsume);
+
+            const updatedData = {
+                ...currentData,
+                inventory: newInventory
+            };
+
+            if (currentData.hp) updatedData.hp = { ...currentData.hp, current: newHp };
+            if (currentData.sanity) updatedData.sanity = { ...currentData.sanity, current: newSan };
+
+            const { error } = await supabase
+                .from('investigators')
+                .update({ data: updatedData })
+                .eq('id', currentUserInvestigator.id);
+
+            if (error) {
+                console.error("Failed to consume item:", error);
+                alert("Erro ao consumir item.");
+            } else {
+                let healMessage = `Você consumiu ${item.name}! `;
+                if (realHpGained > 0) healMessage += ` Recuperou ${realHpGained} de Vida.`;
+                if (realSanGained > 0) healMessage += ` Recuperou ${realSanGained} de Sanidade.`;
+                alert(healMessage);
+
+                globalChannelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'status_update',
+                    payload: { investigatorId: currentUserInvestigator.id, field: 'inventory', value: newInventory }
+                });
+
+                if (realHpGained > 0) {
+                    globalChannelRef.current?.send({
+                        type: 'broadcast',
+                        event: 'status_update',
+                        payload: { investigatorId: currentUserInvestigator.id, field: 'hp', value: updatedData.hp }
+                    });
+                }
+
+                if (realSanGained > 0) {
+                    globalChannelRef.current?.send({
+                        type: 'broadcast',
+                        event: 'status_update',
+                        payload: { investigatorId: currentUserInvestigator.id, field: 'sanity', value: updatedData.sanity }
+                    });
+                }
+
+                globalChannelRef.current?.send({ type: 'broadcast', event: 'refresh_session', payload: {} });
+            }
+        } catch (e) {
+            console.error("Error handling item consumption:", e);
         }
     };
 
@@ -742,16 +866,27 @@ export default function PlayerSessionView() {
                                                     {item.description}
                                                 </p>
 
-                                                {/* Botão de Excluir */}
-                                                <div className="mt-4 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {/* Action Buttons */}
+                                                <div className="mt-4 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {(item.type === 'Consumível' || item.stats) && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-green-500 hover:text-green-400 hover:bg-green-950/30 h-8 px-2"
+                                                            onClick={() => handleConsumeItem(idx)}
+                                                        >
+                                                            <Heart className="w-4 h-4 mr-1" />
+                                                            Utilizar
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-red-500 hover:text-red-400 hover:bg-red-950/30 h-8 px-2"
                                                         onClick={() => handleRemoveItem(idx)}
                                                     >
-                                                        <Trash2 className="w-4 h-4 mr-2" />
-                                                        Descartar
+                                                        <Trash2 className="w-4 h-4 mr-1" />
+                                                        Largar
                                                     </Button>
                                                 </div>
                                             </div>
@@ -921,6 +1056,51 @@ export default function PlayerSessionView() {
                         >
                             Guardar na Mochila
                         </Button>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Evidence/Handout Received Glassmorphism Modal */}
+            {mounted && activeHandout && createPortal(
+                <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-12 animate-in zoom-in-95 duration-700">
+                    <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col items-center justify-center p-4 sm:p-10 box-border bg-gradient-to-br from-[#120a0a]/90 to-black/90 rounded-sm shadow-[0_0_100px_rgba(200,10,10,0.15)] border border-[var(--color-mythos-gold-dim)]/30">
+                        {/* Fecha na X lateral */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setActiveHandout(null)}
+                            className="absolute top-4 right-4 text-[var(--color-mythos-gold-dim)] hover:text-white bg-black/50 border border-white/10 z-[310]"
+                        >
+                            <X className="w-8 h-8" />
+                        </Button>
+
+                        <div className="flex flex-col items-center text-center max-h-full overflow-hidden w-full">
+                            {activeHandout.title && (
+                                <h2 className="text-2xl sm:text-4xl font-heading text-[var(--color-mythos-gold)] tracking-[0.2em] uppercase mb-6 drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]">
+                                    {activeHandout.title}
+                                </h2>
+                            )}
+
+                            <div className="relative border-4 border-[#120a0a] shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-black p-1 max-h-[60vh] overflow-hidden group">
+                                <img
+                                    src={activeHandout.url}
+                                    alt={activeHandout.title || "Evidência"}
+                                    className="max-w-full max-h-[60vh] object-contain transition-transform duration-[10s] group-hover:scale-105 filter sepia-[0.1]"
+                                    style={{ boxShadow: 'inset 0 0 50px rgba(0,0,0,1)' }}
+                                />
+                                {/* Sujeirinha por cima da Imagem */}
+                                <div className="absolute inset-0 bg-[url('/paper-texture.png')] mix-blend-multiply opacity-30 pointer-events-none"></div>
+                            </div>
+
+                            <Button
+                                onClick={() => setActiveHandout(null)}
+                                className="mt-8 bg-transparent border border-[var(--color-mythos-gold-dim)] text-[var(--color-mythos-gold-dim)] hover:bg-[var(--color-mythos-gold)] hover:text-black hover:border-[var(--color-mythos-gold)] font-serif uppercase tracking-[0.3em] px-8 py-6 transition-all duration-500"
+                            >
+                                <Eye className="w-5 h-5 mr-3" />
+                                Guardar Pista
+                            </Button>
+                        </div>
                     </div>
                 </div>,
                 document.body
